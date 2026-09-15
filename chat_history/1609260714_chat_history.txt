@@ -1,0 +1,98 @@
+================================================================================
+CHAT HISTORY EXPORT — 2026-09-16
+Session: Implemented Liv's slide feedback, removed all OpenAI integration
+(Claude-only), and generated the end-user guide (iMAG Page Builder).
+(Continues from 1509261458_chat_history.txt.)
+================================================================================
+
+NOTE ON REDACTIONS: Several live credentials passed through tool calls this
+session and are NOT reproduced here — each appears only by name / as [REDACTED_*]:
+the OpenAI API key (removed from `.env` during the OpenAI teardown), and the
+Google OAuth refresh token + Supabase service key (re-embedded in the cloud
+routine's prompt when its steps were updated via RemoteTrigger). `.env` and the
+`routine_token*` file remain gitignored.
+
+--------------------------------------------------------------------------------
+USER:
+"update routine. implement liv's feedback." (Liv's file `150926 feedback from
+liv.txt`: slide 4 tailor + relate to slide-3 objectives; slide 5 delete; slide 2
+more detail + objectives; slide 7 relate to objectives; slides 8-10 check bonus;
+slide 12 mention + highlight the duration.)
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+In plan mode, dumped the template to ground each item, and confirmed two decisions
+with the user: delete slide 5 per-generated-deck (master untouched), and make the
+bonus slides 8-10 CONDITIONAL on the notes' ADD BONUS VALUE ticks. Implemented:
+- `slides_service.delete_slide()` + a `delete-slide` CLI (delete by objectId or
+  index) — verified on a throwaway template copy (13 -> 11 slides, reindexed).
+- Slide map moved to TAILOR = 1,2,3,4,6,7,12 (+ cover layout); slide 4 now tailored
+  (tie PROGRAM COMPONENTS to the client's objectives, drop the "SWIM's leadership
+  and growth objectives" phrase); slides 2/7 relate to the objectives; slide 12
+  DELIVERY states + highlights the duration.
+- Structural changes done LAST by objectId: always delete the PROGRAM FRAMEWORK
+  slide (g3f73b73fc1d_0_8); keep only ticked bonus slides (Debrief g2f9b7407bc0_0_290
+  $995, Executive X g2f9b7407bc0_0_431 $2,995), adjust the intro's "2 gifts/$3,995"
+  count/value, and delete the intro (g2f9b7407bc0_0_148) if neither is ticked.
+- Rewrote SKILL.md to spec; updated config (slide map + bonus/delete constants);
+  added bonus fields to the (then-still-present) OpenAI notes_service + pipeline
+  parity. Verified on a live test deck (Debrief kept / Exec X dropped): slide 4
+  SWIM ref gone + tied to objectives, bonus intro became "1 gift/$995", framework +
+  Exec X deleted, slide-12 "3-HR IN-PERSON" highlighted. Committed 4a80d3f, pushed.
+- Updated the cloud routine's prompt (RemoteTrigger) to the new tailor/bonus/delete
+  steps; caught + fixed an accidental cron wipe (restored "45 * * * *"); reset the
+  Synergy queue row for a manual test.
+
+--------------------------------------------------------------------------------
+USER:
+"remove all integration of openAI. just use claude for everything as agreed. use
+claude to read the bonus checkboxes. insert a new row in the table for synergy for
+me to manually test run."
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+In plan mode, confirmed the OpenAI reference graph was self-contained dead code
+(the routine + interactive skill are already Claude-driven). Deleted main.py,
+pipeline.py, src/notes_service.py, src/slides_tailor.py, src/llm_client.py,
+src/logo_service.py; removed OPENAI_API_KEY ([REDACTED_OPENAI_KEY]) / OPENAI_MODEL
+/ REQUIRED_OCR_FIELDS from config, the `openai` dependency, and the OpenAI `.env`
+lines; repurposed /run-uncharted-ice-pipeline into a Claude-driven manual queue
+drain; rewrote CLAUDE.md + as_built.txt to the Claude-only reality. Verified all
+modules compile/import and no `openai` refs remain in code. Committed 42d45b3,
+pushed. Replaced the reset Synergy row with one fresh unprocessed row
+(cc0f9715-...) so exactly one is queued. (Bonus-checkbox reading is already done by
+Claude in the routine/skill; the routine's stored .env has only Google + Supabase
+creds — [REDACTED_GOOGLE_REFRESH_TOKEN], [REDACTED_SUPABASE_SERVICE_KEY].)
+
+--------------------------------------------------------------------------------
+USER:
+/create-user-guide-doc — generate the end-user guide for this project.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Drafted an employee-facing guide from the project's CLAUDE.md/as_built.txt (What
+This Is; Who It's For; What It Needs; What You Get / Expect; Known Limitations; How
+It Was Built + tech stack; Troubleshooting; Support -> Julienne). Per the user's
+answers, skipped a concrete submission entry point (still being finalised) and
+listed Julienne for support. Fired the iMAG Page Builder routine
+(trig_01Ri1mhfdBuHUYT5tCSSmYaG) with the HTML inline (Notify julienne@..., Save to
+folder 1fN4U-Ebu_m5tt8Mw-335o9_ZjH5lQqDK). It rendered the iMAG-themed page and
+saved "Uncharted Ice Proposal Maker — User Guide.html" (id 1HK3rPVClnXQ27WaeZ2hBoptl8b7GBHFL)
+to that Drive folder. Downloaded the raw HTML and saved a local copy to the project
+root as uncharted-ice-proposal-maker-user-guide.html.
+
+--------------------------------------------------------------------------------
+USER:
+Invoked /dcp.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Ran the dcp steps. Found a new "160926 feedback from Liv.txt" (slide 6: tailor the
+1st + 2nd paragraphs too, not just the 3rd) — committed as project content and
+flagged as a follow-up, not implemented here. as_built.txt + CLAUDE.md were already
+current from commit 42d45b3, so left unchanged. Wrote this history (with the
+redactions above) and committed + pushed the guide + feedback file.
+
+================================================================================
+END OF EXPORT
+================================================================================
