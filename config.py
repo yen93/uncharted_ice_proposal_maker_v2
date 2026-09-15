@@ -60,9 +60,10 @@ VERBATIM_SLIDES = [11, 13]  # 8/9/10 are conditional; 5 is deleted
 ALWAYS_DELETE_SLIDE_IDS = ["g3f73b73fc1d_0_8"]  # THE PROGRAM FRAMEWORK
 BONUS_INTRO_SLIDE_ID = "g2f9b7407bc0_0_148"  # "…2 value-packed bonus gifts…$3,995"
 BONUS_SLIDES = {
-    # key -> {slide_id, value, notes-field on the transcription}
-    "debrief_call": {"slide_id": "g2f9b7407bc0_0_290", "value": 995, "field": "bonus_debrief_call"},
-    "executive_x": {"slide_id": "g2f9b7407bc0_0_431", "value": 2995, "field": "bonus_executive_x"},
+    # key -> {slide_id, value}. Kept only when Claude sees the bonus ticked in the
+    # notes' ADD BONUS VALUE checklist (see the skill/routine).
+    "debrief_call": {"slide_id": "g2f9b7407bc0_0_290", "value": 995},
+    "executive_x": {"slide_id": "g2f9b7407bc0_0_431", "value": 2995},
 }
 
 # Object IDs of the CLIENT-logo image shapes in the master template (the SWIM
@@ -94,20 +95,12 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
 
-# --- Automated pipeline (main.py) only. The interactive skill needs none of these. ---
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-# `... or "..."` (not .get(default)) so a blank OPENAI_MODEL= line in .env still
-# falls back instead of sending an empty model string to the API.
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL") or "gpt-5.6-luna"
-
+# --- Supabase queue (the automated cloud routine drains this). ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-# The queue the API trigger drains. Columns used: id, demo_notes_link,
+# The queue the routine drains. Columns used: id, demo_notes_link,
 # additional_notes, is_processed, status, error_message, proposal_link, processed_at.
 SUPABASE_LOG_TABLE = "proposal_demo_notes_email_logs"
-
-# Transcription fields that hard-block a run if missing (everything else is optional).
-REQUIRED_OCR_FIELDS = ["client_org", "recommended_service", "summary"]
 
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/drive",

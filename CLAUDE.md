@@ -5,30 +5,28 @@ Guidance for a future Claude Code session working in this repo.
 ## What this is
 
 `uncharted_ice_proposal_maker_v2` builds a tailored Uncharted Ice sales proposal
-deck from a client's demo-call notes. It has **two run modes that share all the same
-helpers and produce the same output**:
+deck from a client's demo-call notes. **Everything is Claude-driven — there is NO
+OpenAI/LLM-API dependency anywhere.** Claude transcribes the notes, writes the
+highlight-safe edits, and reads the ADD BONUS VALUE checkboxes with its own vision.
+There are two ways to run it, sharing the same helpers and producing the same output:
 
 1. **Interactive skill** — `/make-uncharted-ice-proposal`
    (`.claude/skills/make-uncharted-ice-proposal/SKILL.md`). You hand Claude a Drive
-   link to the notes; Claude drives the steps and does the transcription + tailoring
-   with its own judgment. Best quality. This is the authoritative definition of the
-   process.
+   link to the notes; Claude drives the steps. This is the **authoritative definition
+   of the process** (slide map, highlight rules, delete/bonus rules).
 2. **Automated cloud routine** — `uncharted-ice-proposal-maker-v2`
    (`trig_016A8ahwJy4x7DKjxFhTmGh5` at claude.ai/code/routines, hourly at :45 UTC,
-   Default env). It is **Claude-driven**: the routine's own Claude agent drains the
-   Supabase queue `proposal_demo_notes_email_logs` (via `python v2_tools.py
-   queue-list`) and does the SAME steps itself — transcribing the notes with its
-   own vision and writing the highlight-safe edits — then `queue-done`. It does
-   **not** use OpenAI. Update its prompt/secrets via the RemoteTrigger tool.
-   - `python main.py` (`pipeline.py`, `/run-uncharted-ice-pipeline`) is an
-     OpenAI-based version of the same queue pipeline, kept as a fallback but NOT
-     used by the routine — its default model (`gpt-5.6-luna`) proved too weak at
-     handwriting OCR (missed a clearly-written client name). Prefer the routine.
+   Default env). The routine's own Claude agent reads that SKILL.md, drains the
+   Supabase queue `proposal_demo_notes_email_logs` (`python v2_tools.py queue-list`),
+   does the same steps per row, and marks each `queue-done`. Update its prompt/secrets
+   via the RemoteTrigger tool. `/run-uncharted-ice-pipeline` is the manual, on-demand
+   version of the same drain.
 
-Both do: transcribe → make client folder → transfer notes → copy the master template
-→ tailor the client slides in place → swap the client logo → email the link to Liv.
-The automated mode can't visually self-verify, so it flags anything uncertain as
-`needs_review`.
+The flow: transcribe → client folder → transfer notes → copy the master template →
+tailor the client slides in place → delete the program-framework slide → keep only
+the offered bonus slides → swap the client logo → email the link to Liv → mark the row
+done. The automated runs can't visually self-verify, so they flag anything uncertain
+as `needs_review`.
 
 ## Why v2 exists (the core design decision)
 
@@ -42,12 +40,13 @@ hand-correction against the sales specialist's deck (see v1's
 v2 changes the strategy:
 - The master template (`config.V2_TEMPLATE_ID`) is already the
   sales-specialist-quality deck.
-- The finished, non-client slides (**4, 8-11, 13**) are left **completely
-  untouched**.
-- The client slides (**1, 2-3, 5-7, 12**) are edited **in place** via scoped
-  `replaceAllText` (see `src/slides_service.py`), which swaps only the matched
-  phrase and leaves every other run's styling intact. The static styled headers
-  are never touched, so their highlights/bullet colours survive automatically.
+- The client slides (**1, 2, 3, 4, 6, 7, 12** + the cover layout) are edited **in
+  place** via scoped `replaceAllText` (see `src/slides_service.py`), which swaps only
+  the matched phrase and leaves every other run's styling intact. The static styled
+  headers are never touched, so their highlights/bullet colours survive automatically.
+- Structural changes are applied LAST by objectId: slide 5 (framework) is always
+  deleted; the bonus slides (8-10) are kept only when ticked in the notes. See the
+  SKILL.md slide map for the authoritative list + object IDs.
 
 **Never** switch v2 back to a delete+insert rewrite to "tailor" a slide — that
 reintroduces exactly the formatting loss v2 was built to avoid.
@@ -69,29 +68,25 @@ python v2_tools.py save-text     <folder_id> "<filename>" <local_text>
 python v2_tools.py dump-slides   <presentation_link>
 python v2_tools.py apply-edits   <presentation_link> <edits_json>
 python v2_tools.py replace-logo  <presentation_link> <public_image_url>
+python v2_tools.py delete-slide  <presentation_link> <slide_index_or_object_id>
 python v2_tools.py thumbnails    <presentation_link> <1,2,3,...> <out_dir>
 python v2_tools.py email-proposal "<client>" "<deck_url>" "<folder_url>"
+python v2_tools.py queue-list                       # unprocessed Supabase rows
+python v2_tools.py queue-done    <row_id> <status> <proposal_link|-> <error|->
 ```
 
-For the **automated pipeline**:
-```
-python main.py            # drains the Supabase queue once (safe to re-run)
-```
-- Queue: `proposal_demo_notes_email_logs` (project `aivitcomiywiysrfwqxt`). It reads
-  rows where `is_processed is null or false`, newest first. Each row provides
-  **`demo_notes_link`** (Drive link to the notes) and **`additional_notes`** (extra
-  typed context folded into transcription + tailoring). On finish it sets
-  `is_processed=true`, `status` (`success`/`needs_review`/`error`), `proposal_link`,
-  `processed_at` — unconditionally, so a bad row is never retried forever.
-- Pipeline files: `pipeline.py` (orchestrator), `src/notes_service.py` (OpenAI vision
-  transcription), `src/slides_tailor.py` (OpenAI → highlight-safe edits, mapped into
-  `slides_service.apply_edits`), `src/supabase_service.py` (queue), plus copies of v1's
-  `src/llm_client.py` and `src/logo_service.py`.
-- **`slides_tailor` highlight rule (critical):** a `find` must never *span* a highlight
-  boundary, but it MAY replace a highlighted run in full (e.g. highlighted "3-DAY
-  IN-PERSON" → "FULL-DAY", keeping the highlight). Do not loosen this to "never touch
-  highlighted runs" (that leaves stale highlighted text) nor to allowing boundary-
-  spanning finds (that collapses the highlight).
+For the **automated queue** (the cloud routine, or `/run-uncharted-ice-pipeline`
+manually): `queue-list` reads `proposal_demo_notes_email_logs` (project
+`aivitcomiywiysrfwqxt`) where `is_processed is null or false`, newest first. Each row
+provides **`demo_notes_link`** (Drive link to the notes) and **`additional_notes`**
+(extra typed context). `queue-done` sets `is_processed=true`, `status`
+(`success`/`needs_review`/`error`), `proposal_link` — so a bad row is never retried.
+
+**Highlight rule (critical, in SKILL.md):** a `find` must never *span* a highlight
+boundary, but it MAY replace a highlighted run in full (e.g. highlighted "3-DAY
+IN-PERSON" → "FULL-DAY", keeping the highlight). Don't loosen it to "never touch
+highlighted runs" (leaves stale highlighted text) nor allow boundary-spanning finds
+(collapses the highlight).
 
 ## Config & credentials
 
@@ -103,11 +98,9 @@ python main.py            # drains the Supabase queue once (safe to re-run)
   julienne@myadventuregroup.com.au). v1's refresh token already carries the
   drive+presentations+gmail.send scopes v2 needs, so no separate consent flow is
   normally required. Only run `python oauth_setup.py` if the token is missing/revoked.
-- The **automated pipeline** additionally needs `OPENAI_API_KEY` (transcription +
-  tailoring) and `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` (the queue) in `.env` — all
-  reused from v1. `OPENAI_MODEL` is optional (default `gpt-5.6-luna`, same `... or`
-  fallback pattern as v1 so a blank line doesn't send an empty model string). The
-  interactive skill needs none of these.
+- The **automated queue** additionally needs `SUPABASE_URL`/`SUPABASE_SERVICE_KEY`
+  in `.env` (reused from v1) — for `queue-list`/`queue-done`. No OpenAI/LLM key is
+  used anywhere; Claude does the transcription + tailoring itself.
 - `.env` is gitignored; `.env.example` is tracked. Real secrets go only in `.env`.
 
 ## Key conventions / gotchas
