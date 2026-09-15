@@ -1,0 +1,9 @@
+## your task: i need you to create a claude code routine called uncharted_ice_proposal_maker_v2 that does these steps:
+1. transcribe the provided demo notes.
+2. Create a folder in this drive and name the folder with the Client/Company Name: https://drive.google.com/drive/folders/16xjpO2qFGxPBXRvirx86hc_kmnyXALq6
+3. Transfer the demo notes file to the folder created.
+4. create a copy of this google slides file (copy everything): https://docs.google.com/presentation/d/1Ho1sCDir6bu3UfsJF3MWyJuSchGjjWQ_f9aAs9viM50/edit?usp=drive_link
+5. transfer the copy created to the folder created.
+6. Update the first slide/title page and tailor the texts based on the demo notes.
+7. slides 2-3, 5-7, 12: just edit and tailor the texts based on the client demo notes. but keep the structure and design of the texts.
+8. slides 4, 8-11, 13 : just copy paste the slides from the reference file. change nothing.

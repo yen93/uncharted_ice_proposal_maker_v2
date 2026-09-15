@@ -1,0 +1,122 @@
+================================================================================
+CHAT HISTORY EXPORT — 2026-09-15
+Session: Design + build uncharted_ice_proposal_maker_v2 — an interactive Claude
+Code /skill that turns a client's demo-call notes into a tailored Uncharted Ice
+proposal deck, editing client slides in place to preserve the deck's design.
+================================================================================
+
+NOTE ON REDACTIONS: While exploring the predecessor project
+(../uncharted_ice_proposal_maker), the assistant read that project's `.env`,
+whose contents (Google OAuth client secret + refresh token, an OpenAI API key, a
+Supabase service key, and a Fathom API key) were echoed into tool output, and
+also wrote a v2 `.env` reusing the Google OAuth credentials. None of those live
+secret values are reproduced in this transcript — each is referred to only by
+name and shown as [REDACTED_*]. The `.env` files themselves are gitignored in
+both projects and are not committed.
+
+--------------------------------------------------------------------------------
+USER:
+Pointed the assistant at `initial prompt.txt` in the (otherwise empty)
+uncharted_ice_proposal_maker_v2 folder. The prompt asked to create a Claude Code
+routine named uncharted_ice_proposal_maker_v2 that: (1) transcribes provided demo
+notes; (2) creates a folder named with the Client/Company name inside a specific
+Drive folder (16xjpO2qFGxPBXRvirx86hc_kmnyXALq6); (3) moves the demo-notes file
+into it; (4) copies a specific master Google Slides deck
+(1Ho1sCDir6bu3UfsJF3MWyJuSchGjjWQ_f9aAs9viM50); (5) moves the copy into the
+folder; (6) tailors slide 1 (title) from the notes; (7) tailors slides 2-3, 5-7,
+12 (edit text but keep structure/design); (8) copies slides 4, 8-11, 13 verbatim.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Entered plan mode and explored the sibling projects under claude_code/proposals/.
+Found a direct predecessor, uncharted_ice_proposal_maker (v1): a mature, fully
+automated Python pipeline (Gmail/Form-triggered, scheduled cloud routine) that
+OCRs handwritten demo notes, auto-selects a template, dedups via Supabase,
+enriches from Fathom, swaps a guessed client logo, and rewrites slide text via an
+LLM. Read v1's CLAUDE.md, pipeline.py, config.py, project_vars.txt,
+src/slides_rewriter.py, src/drive_service.py, src/ocr_service.py,
+src/google_clients.py, main.py, oauth_setup.py, inspect_template.py, requirements,
+.env(.example), the run-proposal-pipeline SKILL, and a "150926 - modifications.txt"
+hand-correction log.
+
+Key finding: v1's slide rewriter does delete-all + insert then re-applies a single
+captured style per shape, so it CANNOT reproduce per-word highlights (only
+"objectives" in "Learning Objectives", only "INVESTMENT" in "YOUR INVESTMENT")
+— exactly the design detail this deck depends on, which is why v1 output needed
+heavy manual correction against the sales specialist's version. Concluded v2's job
+is to change strategy: leave the already-perfect slides (4, 8-11, 13) untouched
+and edit the client slides (1, 2-3, 5-7, 12) IN PLACE so surrounding styled runs
+survive.
+
+Asked the user three decisions via AskUserQuestion. Answers: (1) run model =
+interactive /skill; (2) demo-notes input = a Google Drive file link pasted at run
+time, transcribed directly by Claude (no OCR/OpenAI dependency); (3) formatting =
+edit text in place (scoped replaceAllText), no token template. Wrote the plan to
+the plan file and exited plan mode; user approved.
+
+Built the routine in uncharted_ice_proposal_maker_v2/, reusing v1's Google
+plumbing:
+- config.py (fixed PROJ_DRIVE_FOLDER_ID + V2_TEMPLATE_ID from project_vars.txt,
+  TAILOR_SLIDES=[1,2,3,5,6,7,12], VERBATIM_SLIDES=[4,8,9,10,11,13], drive +
+  presentations scopes).
+- src/google_clients.py (trimmed to Drive+Slides), src/drive_service.py
+  (create_client_folder named with the bare client name, move_file_into_folder
+  with copy fallback, duplicate_template, download_file_bytes, upload_file).
+- src/slides_service.py — the core: dump() (per-slide, per-shape, per-RUN text
+  with colours/bold/size), apply_edits() (scoped replaceAllText via pageObjectIds,
+  reports occurrences), thumbnails() (getThumbnail -> PNG for visual verify).
+- v2_tools.py — CLI dispatcher the skill shells out to (fetch-notes, make-folder,
+  move-file, copy-template, save-text, dump-slides, apply-edits, thumbnails), each
+  printing JSON; resolves IDs from raw IDs or URLs.
+- oauth_setup.py, requirements.txt (google-api-python-client, google-auth,
+  google-auth-oauthlib, python-dotenv, requests), project_vars.txt, .gitignore,
+  .env.example, and .env reusing v1's Google OAuth creds
+  (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET=[REDACTED_OAUTH_CLIENT_SECRET] /
+  GOOGLE_REFRESH_TOKEN=[REDACTED_REFRESH_TOKEN]).
+- .claude/skills/make-uncharted-ice-proposal/SKILL.md — the step-by-step routine.
+- CLAUDE.md — project guidance (why v2 exists, the slide map, run instructions,
+  credential reuse, gotchas).
+
+Verified read-only paths against the LIVE template: installed deps (Python
+3.14.6); dump-slides returned all 13 slides; inspected per-run detail confirming
+the highlight structure (slide 3 "OBJECTIVES" and slide 12 "INVESTMENT" carry a
+theme:ACCENT1 background while their preceding words do not; slide 12 DESIGN/
+DELIVERY and figures 24,500 / 18,500 visible); thumbnails rendered a real
+1600x900 PNG which the assistant viewed.
+
+Important discovery during verification: slide 1's visible cover content — the
+big "UNCHARTED ICE" title, the client TAGLINE ("A tailored program for aquatic
+leaders..."), the DATE ("MAY 2027"), and the logos — is NOT on slide 1; it lives
+on a custom layout ("Custom Layout 4"), the same limitation v1 documented. Also
+noted the template 1Ho1... is currently the SWIM-tailored deck. Extended
+slides_service.dump() to surface used layouts (with per-run text) so the cover
+tagline/date can be retexted by scoping an edit to the layout_id; updated SKILL.md
+and CLAUDE.md accordingly (client logo swap on the layout remains a flagged
+hand-finish). Confirmed the updated dump surfaces only the one client-specific
+layout. Ran py_compile on all modules (all OK) and confirmed config resolves both
+IDs and the slide map.
+
+Did NOT run any Drive-mutating step (make-folder / move-file / copy-template /
+apply-edits) — those create/move real files in the user's Drive — and flagged
+that a meaningful live test needs a non-SWIM client's notes. Offered to run a full
+live pass on request and to switch move-file to copy-instead-of-move if preferred.
+
+--------------------------------------------------------------------------------
+USER:
+Invoked /dcp — save the chat transcript, create/update as_built.txt and CLAUDE.md,
+then commit and push.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Ran the dcp steps. Determined this is a brand-new project: no chat_history/ and no
+git yet. Checked sibling repos and found each proposals project has its OWN
+dedicated GitHub repo under yen93/ (v1 -> sales_proposals_automation, etc.), so v2
+has no configured remote. Wrote this chat-history file (with the credential
+redactions noted above), created as_built.txt, confirmed CLAUDE.md was already
+accurate (left as-is), initialised git, and committed locally. Stopped before
+pushing to ask the user for the correct remote URL rather than guessing one or
+creating a repo unprompted.
+
+================================================================================
+END OF EXPORT
+================================================================================

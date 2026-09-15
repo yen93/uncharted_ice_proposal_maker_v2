@@ -1,0 +1,10 @@
+.env
+.google_token.json
+claudegwscli-client_secret_*.json
+__pycache__/
+*.pyc
+.claude/*
+!.claude/skills/
+# Client demo-call notes (private business data — kept out of the repo)
+*.pdf
+

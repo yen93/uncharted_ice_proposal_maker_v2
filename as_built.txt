@@ -1,0 +1,72 @@
+================================================================================
+AS-BUILT — uncharted_ice_proposal_maker_v2
+Last updated: 2026-09-15
+================================================================================
+
+OVERVIEW
+- Interactive Claude Code routine (a /skill, NOT an automated pipeline) that turns
+  a client's demo-call notes into a tailored "Uncharted Ice" sales proposal deck.
+- Strategy: copy a master template deck, then edit ONLY the client-specific slides
+  in place (preserving the deck's exact design/highlights) and leave the finished
+  slides untouched. In-place edits use scoped Slides `replaceAllText`, which keeps
+  every surrounding text run's styling — the fix for v1's per-word-highlight loss.
+
+SLIDE MAP (1-indexed; in config.py)
+- TAILOR (retext in place, keep design): 1, 2, 3, 5, 6, 7, 12
+- VERBATIM (leave untouched): 4, 8, 9, 10, 11, 13
+
+SCRIPTS
+- v2_tools.py — CLI the skill shells out to; one Google operation per subcommand,
+  each prints JSON. Subcommands: fetch-notes, make-folder, move-file,
+  copy-template, save-text, dump-slides, apply-edits, thumbnails. Accepts raw IDs
+  or full Drive/Slides URLs.
+  Requires: .env (Google OAuth) + project_vars.txt.
+- config.py — loads .env + project_vars.txt; extracts PROJ_DRIVE_FOLDER_ID and
+  V2_TEMPLATE_ID, holds the slide map and Google scopes (drive, presentations).
+- src/google_clients.py — builds Drive + Slides API clients from the refresh token.
+- src/drive_service.py — create_client_folder (folder named the bare client name,
+  reuse-if-exists), move_file_into_folder (parent swap; copy fallback if not
+  movable), duplicate_template, download_file_bytes (exports Google-native files to
+  PDF), upload_file.
+- src/slides_service.py — dump() (per-slide + per-USED-layout, per-shape, per-RUN
+  text with colours/bold/size), apply_edits() (scoped replaceAllText via
+  pageObjectIds; a slide_id OR a layout_id can be targeted; reports occurrences),
+  thumbnails() (getThumbnail -> PNG for visual verification).
+- oauth_setup.py — one-time OAuth consent to mint GOOGLE_REFRESH_TOKEN into .env.
+  Normally unnecessary (token reused from v1). Requires: GOOGLE_CLIENT_ID/SECRET.
+
+AUTOMATIONS / ROUTINES
+- .claude/skills/make-uncharted-ice-proposal/SKILL.md — the routine, run manually
+  via /make-uncharted-ice-proposal inside Claude Code. Steps: transcribe notes ->
+  create client folder -> transfer notes + save transcription -> copy master
+  template -> dump/inspect -> tailor slides 1/2-3/5-7/12 in place (incl. cover
+  tagline+date on the layout) -> leave 4/8-11/13 -> render thumbnails & verify ->
+  report folder+deck links and a QA note. No cron/cloud schedule.
+
+EXTERNAL INTEGRATIONS
+- Google Drive API + Google Slides API (googleapis.com) — accessed via
+  google-api-python-client using an OAuth refresh token. Credentials in .env
+  (gitignored), reused from ../uncharted_ice_proposal_maker (same Google account,
+  julienne@myadventuregroup.com.au; that token's scopes are a superset of the
+  drive+presentations scopes v2 needs). No OpenAI / Supabase / Fathom — v2 drops
+  all of v1's OCR/dedup/enrichment dependencies (Claude transcribes the notes
+  directly).
+
+FIXED RESOURCES (in project_vars.txt)
+- Master "Proposals" Drive folder: 16xjpO2qFGxPBXRvirx86hc_kmnyXALq6 (every client
+  folder is created under it).
+- Master template deck: 1Ho1sCDir6bu3UfsJF3MWyJuSchGjjWQ_f9aAs9viM50. NOTE: its
+  cover (slide 1) content — title, client tagline, date, logos — lives on a custom
+  layout ("Custom Layout 4"), not on the slide; dump() surfaces used layouts so the
+  tagline/date are editable via a layout-scoped replaceAllText. The client logo on
+  the layout is NOT auto-swapped (hand-placed). The template is currently
+  SWIM-tailored, so a meaningful live test should use a different client's notes.
+
+DATA STORES
+- None. (No Supabase/dedup DB; v2 is manual/on-demand.) Transient run artifacts
+  (downloaded notes, thumbnails, edits.json) live in the session scratchpad.
+
+SETUP
+- pip install -r requirements.txt (google-api-python-client, google-auth,
+  google-auth-oauthlib, python-dotenv, requests). Python 3.14 used in this build.
+================================================================================

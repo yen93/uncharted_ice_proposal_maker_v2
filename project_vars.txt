@@ -1,0 +1,6 @@
+[
+  {
+    "proj_drive_link": "https://drive.google.com/drive/folders/16xjpO2qFGxPBXRvirx86hc_kmnyXALq6",
+    "template_link": "https://docs.google.com/presentation/d/1Ho1sCDir6bu3UfsJF3MWyJuSchGjjWQ_f9aAs9viM50/edit"
+  }
+]
