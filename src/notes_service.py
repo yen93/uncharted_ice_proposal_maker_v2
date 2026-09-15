@@ -27,6 +27,8 @@ EXTRACTION_TOOL = {
             "location": {"type": "string", "description": "Delivery location or virtual/in-person, if mentioned"},
             "key_themes": {"type": "string", "description": "The key themes / learning objectives / values discussed (comma- or newline-separated as written)"},
             "investment_notes": {"type": "string", "description": "Any pricing/budget/investment figures or options mentioned (e.g. 'AU$18,500 for 3-day; $8,500 conference'), else empty"},
+            "bonus_debrief_call": {"type": "boolean", "description": "True only if the 'Debrief Call' item in the notes' ADD BONUS VALUE checklist is ticked/checked"},
+            "bonus_executive_x": {"type": "boolean", "description": "True only if the 'Executive X' item in the notes' ADD BONUS VALUE checklist is ticked/checked"},
             "summary": {"type": "string", "description": "1-3 sentence summary of the client's situation and goals"},
             "scope": {"type": "string", "description": "Notes on scope, program components, day-by-day breakdown, etc."},
             "client_domain": {"type": "string", "description": "Best guess of the client's website domain for a logo lookup (e.g. 'tilray.com'), else empty string"},

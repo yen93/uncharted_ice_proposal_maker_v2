@@ -10,6 +10,7 @@ Usage:
     python v2_tools.py save-text     <folder_id> "<filename>" <local_text_path>
     python v2_tools.py dump-slides   <presentation_link_or_id>
     python v2_tools.py apply-edits   <presentation_link_or_id> <edits_json_path>
+    python v2_tools.py delete-slide  <presentation_link_or_id> <slide_index_or_object_id>
     python v2_tools.py replace-logo  <presentation_link_or_id> <public_image_url>
     python v2_tools.py thumbnails    <presentation_link_or_id> <1,2,3,...> <out_dir>
     python v2_tools.py email-proposal "<client name>" "<deck_url>" "<folder_url>"
@@ -103,6 +104,10 @@ def cmd_apply_edits(clients, presentation_link, edits_json_path):
     _emit(slides_service.apply_edits(clients.slides, _resolve_id(presentation_link), edits))
 
 
+def cmd_delete_slide(clients, presentation_link, slide_ref):
+    _emit(slides_service.delete_slide(clients.slides, _resolve_id(presentation_link), slide_ref))
+
+
 def cmd_replace_logo(clients, presentation_link, image_url):
     _emit(slides_service.replace_logo(
         clients.slides, _resolve_id(presentation_link), image_url, config.CLIENT_LOGO_IMAGE_IDS
@@ -148,6 +153,7 @@ COMMANDS = {
     "save-text": (cmd_save_text, 3),
     "dump-slides": (cmd_dump_slides, 1),
     "apply-edits": (cmd_apply_edits, 2),
+    "delete-slide": (cmd_delete_slide, 2),
     "replace-logo": (cmd_replace_logo, 2),
     "thumbnails": (cmd_thumbnails, 3),
     "email-proposal": (cmd_email_proposal, 3),

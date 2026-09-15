@@ -262,6 +262,31 @@ def replace_logo(slides, presentation_id: str, image_url: str, logo_object_ids: 
     return {"replaced": target_ids, "missing": missing, "image_url": image_url}
 
 
+def delete_slide(slides, presentation_id: str, slide_ref) -> dict:
+    """Deletes one slide. `slide_ref` is either a slide objectId (preferred —
+    stable across copies and unaffected by other deletions) or a 1-based index
+    (resolved against the deck's CURRENT order). Returns {deleted, slide_id}.
+
+    Prefer objectIds when deleting several slides in one pass: indices shift after
+    each deletion, objectIds do not."""
+    slide_id = str(slide_ref).strip()
+    if slide_id.isdigit():
+        presentation = slides.presentations().get(
+            presentationId=presentation_id, fields="slides.objectId"
+        ).execute()
+        deck = presentation.get("slides", [])
+        idx = int(slide_id)
+        if idx < 1 or idx > len(deck):
+            raise ValueError(f"slide index {idx} out of range (deck has {len(deck)} slides)")
+        slide_id = deck[idx - 1]["objectId"]
+
+    slides.presentations().batchUpdate(
+        presentationId=presentation_id,
+        body={"requests": [{"deleteObject": {"objectId": slide_id}}]},
+    ).execute()
+    return {"deleted": True, "slide_id": slide_id}
+
+
 def thumbnails(slides, presentation_id: str, slide_indexes: list[int], out_dir: str) -> dict:
     """Saves a PNG thumbnail of each requested slide (1-based index) to out_dir.
     Returns {saved: [{index, slide_id, path}...]}. The contentUrl from

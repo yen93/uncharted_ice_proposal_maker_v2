@@ -95,6 +95,30 @@ def _process_row(clients: GoogleClients, supabase, row: dict) -> None:
         zero_finds = [r["find"] for r in result.get("replacements", []) if r["occurrences"] == 0]
         log.info("Row %s: %d/%d edits applied", row_id, result["total_occurrences"], len(edits))
 
+    # Structural changes (Liv's feedback) — LAST, by objectId so deletions don't
+    # shift each other: always drop the framework slide; keep only the bonus slides
+    # ticked in the notes, adjusting the bonus intro's count/value.
+    kept_bonuses = [b for b in config.BONUS_SLIDES.values() if fields.get(b["field"])]
+    delete_ids = list(config.ALWAYS_DELETE_SLIDE_IDS)
+    delete_ids += [b["slide_id"] for b in config.BONUS_SLIDES.values() if not fields.get(b["field"])]
+    if not kept_bonuses:
+        delete_ids.append(config.BONUS_INTRO_SLIDE_ID)
+    elif len(kept_bonuses) == 1:
+        value = kept_bonuses[0]["value"]
+        try:
+            slides_service.apply_edits(slides, deck["file_id"], [{
+                "slide_id": config.BONUS_INTRO_SLIDE_ID,
+                "find": "2 value-packed bonus gifts valued at more than $3,995",
+                "replace": f"1 value-packed bonus gift valued at more than ${value:,}",
+            }])
+        except Exception:
+            log.exception("Row %s: bonus-intro edit failed", row_id)
+    for slide_id in delete_ids:
+        try:
+            slides_service.delete_slide(slides, deck["file_id"], slide_id)
+        except Exception:
+            log.exception("Row %s: failed to delete slide %s", row_id, slide_id)
+
     # Step 8 — swap the client logo (best-effort, always flagged)
     logo = logo_service.find_logo_url(client_org, fields.get("client_domain", ""))
     logo_replaced = False

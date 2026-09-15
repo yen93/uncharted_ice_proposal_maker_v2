@@ -47,11 +47,23 @@ PROJ_DRIVE_FOLDER_ID = _folder_id_from_link(_PROJECT_VARS["proj_drive_link"])
 # The v2 master template deck (the sales-specialist-quality Uncharted Ice deck).
 V2_TEMPLATE_ID = _presentation_id_from_link(_PROJECT_VARS["template_link"])
 
-# Slide map (1-indexed), per the v2 spec:
+# Slide map (1-indexed on the freshly-copied 13-slide deck), per Liv's feedback:
 #   TAILOR   — retext client-specific wording in place, keep the design.
-#   VERBATIM — leave completely untouched; the template already has them right.
-TAILOR_SLIDES = [1, 2, 3, 5, 6, 7, 12]
-VERBATIM_SLIDES = [4, 8, 9, 10, 11, 13]
+#   VERBATIM — leave as-is.
+# Structural changes are applied LAST, by objectId (stable across deletions):
+#   - Slide 5 "THE PROGRAM FRAMEWORK" is ALWAYS deleted.
+#   - The bonus slides (9 Debrief Call, 10 Executive X, 8 intro) are conditional on
+#     the notes' ADD BONUS VALUE checklist (see BONUS_SLIDES / pipeline.py).
+TAILOR_SLIDES = [1, 2, 3, 4, 6, 7, 12]
+VERBATIM_SLIDES = [11, 13]  # 8/9/10 are conditional; 5 is deleted
+
+ALWAYS_DELETE_SLIDE_IDS = ["g3f73b73fc1d_0_8"]  # THE PROGRAM FRAMEWORK
+BONUS_INTRO_SLIDE_ID = "g2f9b7407bc0_0_148"  # "…2 value-packed bonus gifts…$3,995"
+BONUS_SLIDES = {
+    # key -> {slide_id, value, notes-field on the transcription}
+    "debrief_call": {"slide_id": "g2f9b7407bc0_0_290", "value": 995, "field": "bonus_debrief_call"},
+    "executive_x": {"slide_id": "g2f9b7407bc0_0_431", "value": 2995, "field": "bonus_executive_x"},
+}
 
 # Object IDs of the CLIENT-logo image shapes in the master template (the SWIM
 # logo on the cover + the right-hand logo in the footer lockup on content

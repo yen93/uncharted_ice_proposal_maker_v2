@@ -69,6 +69,12 @@ _RULES = (
     "tagline sentence and the date.\n"
     "6. Use the demo notes AND the additional notes as the source of truth for the new wording. "
     "If you are unsure a phrase is client-specific, leave it alone.\n"
+    "7. Tailor slide 3's learning objectives to the client's themes, and make the PROGRAM "
+    "COMPONENTS slide (slide 4), the bio (slide 2) and 'HOW THE UNCHARTED ICE WORKS' (slide 7) "
+    "relate to those objectives. On slide 4 you MUST replace the old-client phrase \"SWIM's "
+    "leadership and growth objectives\" with the client's equivalent.\n"
+    "8. On the YOUR INVESTMENT slide, the DELIVERY duration is a highlighted run (e.g. "
+    "\"3-DAY IN-PERSON\"); replace it in full with the client's duration so it stays highlighted.\n"
     "Return only the edits."
 )
 

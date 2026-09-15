@@ -1,6 +1,6 @@
 ---
 name: make-uncharted-ice-proposal
-description: Build a tailored Uncharted Ice sales proposal deck from a client's demo-call notes. Given a Google Drive link to the notes (photo/scan/PDF/Doc), it transcribes them, creates a client folder in the master Proposals drive, transfers the notes in, copies the master proposal template, and tailors the client-specific slides (1, 2-3, 5-7, 12) in place — preserving the deck's exact design/highlights — while leaving the finished slides (4, 8-11, 13) untouched. Use when the user asks to make/build/generate an Uncharted Ice proposal, run the v2 proposal maker, or turn demo notes into a proposal deck.
+description: Build a tailored Uncharted Ice sales proposal deck from a client's demo-call notes. Given a Google Drive link to the notes (photo/scan/PDF/Doc), it transcribes them, creates a client folder in the master Proposals drive, transfers the notes in, copies the master proposal template, tailors the client-specific slides (cover, 1, 2, 3, 4, 6, 7, 12) in place preserving the deck's exact design/highlights, deletes the program-framework slide, keeps only the bonus slides actually offered in the notes, and swaps the client logo. Use when the user asks to make/build/generate an Uncharted Ice proposal, run the v2 proposal maker, or turn demo notes into a proposal deck.
 ---
 
 # Make Uncharted Ice proposal (v2)
@@ -24,10 +24,22 @@ client-specific wording on the client slides and leave everything else exact.
 - Use the session scratchpad for temp files (the downloaded notes, thumbnails,
   `edits.json`).
 
-## Slide map (1-indexed) — memorize this
+## Slide map (1-indexed on the freshly-copied 13-slide deck) — memorize this
 
-- **Tailor (retext in place, keep the design):** 1, 2, 3, 5, 6, 7, 12
-- **Leave completely untouched:** 4, 8, 9, 10, 11, 13
+- **Tailor (retext in place, keep the design):** 1, 2, 3, 4, 6, 7, 12
+  (+ the cover **layout** tagline/date).
+- **Delete (structural — do these LAST, after all text edits, by objectId):**
+  - **5** ("THE PROGRAM FRAMEWORK", objectId `g3f73b73fc1d_0_8`) — ALWAYS delete.
+  - **Bonus slides 9 & 10** — conditional (see the bonus step): slide 9 = Debrief
+    Call (`g2f9b7407bc0_0_290`), slide 10 = Executive X (`g2f9b7407bc0_0_431`).
+    Delete a bonus slide only if that bonus is NOT ticked in the notes. If NEITHER
+    bonus is ticked, also delete slide 8 (the bonus intro, `g2f9b7407bc0_0_148`).
+- **Leave untouched:** 8 (bonus intro, if kept), 11 (client feedback/testimonials),
+  13 (closing "THANK YOU"). The client logo on all kept slides is still swapped (step 8).
+
+Why delete LAST and by objectId: object IDs are stable and don't shift when other
+slides are deleted, so you can tailor by the 13-slide indices above, then remove
+slides in any order without re-numbering.
 
 ## Steps
 
@@ -67,7 +79,7 @@ client-specific wording on the client slides and leave everything else exact.
    on the layout is an image — it is not swapped automatically; flag it for
    hand-placement.
 
-6. **Tailor slides 1, 2-3, 5-7, 12 — in place.**
+6. **Tailor slides 1, 2, 3, 4, 6, 7, 12 — in place.**
    Build an `edits.json` (a list of edits) and run
    `python v2_tools.py apply-edits <new_deck_id> "<scratchpad>/edits.json"`.
    Each edit is:
@@ -94,13 +106,50 @@ client-specific wording on the client slides and leave everything else exact.
      "3 DAY … RETREAT WITH …" shape) and, on the cover **layout**, the client
      tagline and the date. Keep the "UNCHARTED ICE" program title as-is. Do NOT
      move logos, text boxes, or anything's placement.
+   - **Learning objectives are the spine (Liv's feedback).** Tailor slide 3's
+     objectives to the client's themes FIRST, then make slides 2, 4 and 7 clearly
+     relate to those same objectives:
+     - **Slide 2 (bio, "NAVIGATING UNCHARTED WATERS"):** make it a bit more
+       detailed and explicitly connect Cas's story to the client's learning
+       objectives (e.g. name the objective areas the session builds).
+     - **Slide 4 ("PROGRAM COMPONENTS"):** this is now tailored, not verbatim. Its
+       component blurbs (Facilitation / Adventure Simulation / Skill-Development)
+       must reflect the client's objectives, and you MUST remove the old-client
+       reference — the template says "tailored to SWIM's leadership and growth
+       objectives"; swap "SWIM's leadership and growth objectives" for the client's.
+     - **Slide 7 ("HOW THE UNCHARTED ICE WORKS"):** relate the outcomes back to the
+       client's learning objectives.
+   - **Slide 12 (YOUR INVESTMENT) — duration (Liv's feedback):** the DELIVERY
+     section must state the session **duration** and keep it **highlighted** like
+     the template. The template highlights the run "3-DAY IN-PERSON"; replace that
+     highlighted run IN FULL with the client's duration (e.g. "FULL-DAY IN-PERSON",
+     "3-DAY IN-PERSON", "6HR IN-PERSON") so the highlight is preserved. Also update
+     the investment figures.
    - **Keep replacements close to the original length** so text doesn't overflow
      its box. Trim detail rather than exceeding it.
    - Read the `occurrences` in the result — a `0` means your `find` didn't match
      (fix the exact text and retry that edit).
 
-7. **Leave slides 4, 8-11, 13 alone.** No text edits. (The client logo on them is
-   still swapped in step 8 — a wrong client logo there would be just as wrong.)
+7. **Bonus slides (conditional) + delete structural slides — do this LAST, after
+   all text edits.**
+   The bonus-value slides are 8 (intro), 9 (Debrief Call, $995) and 10 (Executive
+   X invite, $2,995). From the notes' **ADD BONUS VALUE** checklist, keep only the
+   bonuses that are ticked:
+   - If **both** ticked → keep 8, 9, 10 as-is (intro already says "2 … gifts valued
+     at more than $3,995").
+   - If **only one** ticked → delete the other bonus slide, and edit slide 8's intro
+     from "2 value-packed bonus gifts valued at more than $3,995" to
+     "1 value-packed bonus gift valued at more than $995" (Debrief only) or
+     "$2,995" (Executive X only).
+   - If **neither** ticked → delete slides 8, 9 and 10.
+   Then delete the structural slides (all deletions by **objectId** via
+   `python v2_tools.py delete-slide <deck_id> <object_id>`):
+   - ALWAYS: `delete-slide <deck_id> g3f73b73fc1d_0_8` (THE PROGRAM FRAMEWORK).
+   - Un-ticked Debrief Call → `delete-slide <deck_id> g2f9b7407bc0_0_290`.
+   - Un-ticked Executive X → `delete-slide <deck_id> g2f9b7407bc0_0_431`.
+   - Neither bonus ticked → also `delete-slide <deck_id> g2f9b7407bc0_0_148` (intro).
+   Leave slide 11 (client testimonials) and slide 13 (closing) untouched. The client
+   logo on the kept slides is still swapped in step 8.
 
 8. **Swap the client logo.**
    The template ships with the previous client's (SWIM) logo on the cover and in
@@ -119,13 +168,17 @@ client-specific wording on the client slides and leave everything else exact.
      hand-placement rather than inserting a poor one.
 
 9. **Verify visually.**
-   `python v2_tools.py thumbnails <new_deck_id> "1,2,3,5,6,7,12" "<scratchpad>/thumbs"`
-   `Read` each PNG. Check: wording is correct and client-tailored; highlights,
-   bullet colours, fonts, and placement are unchanged from the template; the
-   **client logo is the right one and looks right on the dark panel** (not
-   clipped, not a dark-on-dark blob); nothing overflows or overlaps. If anything
-   is off, fix it with a follow-up `apply-edits` / `replace-logo` and re-render.
-   (Optionally also render 4/8/11/13 once to confirm they're otherwise identical.)
+   Slide indices shift once you delete slides in step 7, so **re-dump first**
+   (`python v2_tools.py dump-slides <new_deck_id>`) to get the FINAL slide numbers,
+   then render the tailored slides:
+   `python v2_tools.py thumbnails <new_deck_id> "<final indices>" "<scratchpad>/thumbs"`.
+   `Read` each PNG. Check: the framework slide is gone; only the ticked bonus
+   slides remain (and slide 8's count/value matches); wording is client-tailored
+   and slides 2/4/7 relate to the objectives; slide 12's DELIVERY shows the
+   highlighted duration; highlights, bullet colours, fonts and placement are
+   otherwise unchanged; the **client logo is the right one and looks right on the
+   dark panel**; nothing overflows. Fix issues with `apply-edits`/`replace-logo`/
+   `delete-slide` and re-render.
 
 10. **Report.** Give the user:
     - the folder link and the deck edit link,
