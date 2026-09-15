@@ -13,10 +13,17 @@ Usage:
     python v2_tools.py replace-logo  <presentation_link_or_id> <public_image_url>
     python v2_tools.py thumbnails    <presentation_link_or_id> <1,2,3,...> <out_dir>
     python v2_tools.py email-proposal "<client name>" "<deck_url>" "<folder_url>"
+    python v2_tools.py queue-list
+    python v2_tools.py queue-done    <row_id> <status> <proposal_link|-> <error|->
 
 All IDs may be passed as raw IDs or as full Google Drive/Slides URLs.
 `email-proposal` sends to config.NOTIFY_EMAIL (default liv@myadventuregroup.com.au;
 override with the NOTIFY_EMAIL env var).
+
+`queue-list` prints the unprocessed rows of the Supabase queue
+(proposal_demo_notes_email_logs) as JSON [{id, demo_notes_link, additional_notes}].
+`queue-done` marks one row processed: status is success|needs_review|error; pass
+"-" for an empty proposal_link or error.
 """
 
 import json
@@ -24,7 +31,7 @@ import re
 import sys
 
 import config
-from src import drive_service, gmail_service, slides_service
+from src import drive_service, gmail_service, slides_service, supabase_service
 from src.google_clients import GoogleClients
 
 _FILE_RE = re.compile(r"/(?:file/d|presentation/d|document/d|spreadsheets/d)/([a-zA-Z0-9_-]+)")
@@ -107,6 +114,19 @@ def cmd_thumbnails(clients, presentation_link, slides_csv, out_dir):
     _emit(slides_service.thumbnails(clients.slides, _resolve_id(presentation_link), indexes, out_dir))
 
 
+def cmd_queue_list(clients):
+    _emit(supabase_service.list_unprocessed(supabase_service.get_client()))
+
+
+def cmd_queue_done(clients, row_id, status, proposal_link, error_message):
+    link = None if proposal_link in ("", "-") else proposal_link
+    err = None if error_message in ("", "-") else error_message
+    supabase_service.mark_row_processed(
+        supabase_service.get_client(), row_id, status, error_message=err, proposal_link=link
+    )
+    _emit({"row_id": row_id, "status": status, "proposal_link": link, "error_message": err})
+
+
 def cmd_email_proposal(clients, client_name, deck_url, folder_url):
     subject = f"Uncharted Ice proposal ready — {client_name}"
     body = (
@@ -131,6 +151,8 @@ COMMANDS = {
     "replace-logo": (cmd_replace_logo, 2),
     "thumbnails": (cmd_thumbnails, 3),
     "email-proposal": (cmd_email_proposal, 3),
+    "queue-list": (cmd_queue_list, 0),
+    "queue-done": (cmd_queue_done, 4),
 }
 
 
