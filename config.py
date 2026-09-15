@@ -53,13 +53,56 @@ V2_TEMPLATE_ID = _presentation_id_from_link(_PROJECT_VARS["template_link"])
 TAILOR_SLIDES = [1, 2, 3, 5, 6, 7, 12]
 VERBATIM_SLIDES = [4, 8, 9, 10, 11, 13]
 
+# Object IDs of the CLIENT-logo image shapes in the master template (the SWIM
+# logo on the cover + the right-hand logo in the footer lockup on content
+# slides). Drive copies preserve object IDs, so these are stable across every
+# generated deck and can be swapped deterministically for the new client's logo.
+# The "My Adventure Group" logo (left of each footer lockup) is intentionally
+# NOT here — it stays on every deck. If the master template is ever rebuilt from
+# scratch, re-derive these with the image-geometry inspection in the project
+# history (footer client logo sits at x≈1.98"; MAG at x≈0.88").
+# NOTE: this replaces the client logo on every slide it appears, including the
+# "verbatim" slides 4 & 8 — a wrong client logo there would be just as wrong.
+CLIENT_LOGO_IMAGE_IDS = [
+    "g3f6c7e6914d_0_0",   # cover (slide 1)
+    "g3f6c7e6914d_0_1",   # slide 3 footer
+    "g3f6c7e6914d_0_3",   # slide 4 footer
+    "g3f6c7e6914d_0_5",   # slide 6 footer
+    "g3f6c7e6914d_0_7",   # slide 7 footer
+    "g3f6c7e6914d_0_9",   # slide 8 footer
+    "g3f6c7e6914d_0_11",  # slide 12 footer
+]
+
+# Where the "your proposal is ready" email is sent when the routine finishes.
+NOTIFY_EMAIL = os.environ.get("NOTIFY_EMAIL") or "liv@myadventuregroup.com.au"
+
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
 
+# --- Automated pipeline (main.py) only. The interactive skill needs none of these. ---
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+# `... or "..."` (not .get(default)) so a blank OPENAI_MODEL= line in .env still
+# falls back instead of sending an empty model string to the API.
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL") or "gpt-5.6-luna"
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+# The queue the API trigger drains. Columns used: id, demo_notes_link,
+# additional_notes, is_processed, status, error_message, proposal_link, processed_at.
+SUPABASE_LOG_TABLE = "proposal_demo_notes_email_logs"
+
+# Transcription fields that hard-block a run if missing (everything else is optional).
+REQUIRED_OCR_FIELDS = ["client_org", "recommended_service", "summary"]
+
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/presentations",
+    # For the "proposal ready" notification email. The reused refresh token
+    # (shared with v1) was already consented for gmail.send, so adding it here
+    # needs no new OAuth flow. If you ever re-run oauth_setup.py, this scope is
+    # included in the consent.
+    "https://www.googleapis.com/auth/gmail.send",
 ]
 
 

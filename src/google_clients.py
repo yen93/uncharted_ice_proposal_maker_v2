@@ -32,6 +32,7 @@ class GoogleClients:
         self._creds = _load_credentials()
         self._drive = None
         self._slides = None
+        self._gmail = None
 
     @property
     def drive(self):
@@ -44,3 +45,9 @@ class GoogleClients:
         if self._slides is None:
             self._slides = build("slides", "v1", credentials=self._creds)
         return self._slides
+
+    @property
+    def gmail(self):
+        if self._gmail is None:
+            self._gmail = build("gmail", "v1", credentials=self._creds)
+        return self._gmail

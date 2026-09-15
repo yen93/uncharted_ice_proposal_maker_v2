@@ -1,0 +1,101 @@
+================================================================================
+CHAT HISTORY EXPORT — 2026-09-15
+Session: Added client-logo swap + email-to-Liv to the interactive skill, then
+built the AUTOMATED pipeline (python main.py) that runs the skill's exact steps
+unattended from a Supabase queue.
+(Continues from 1509261156_chat_history.txt.)
+================================================================================
+
+NOTE ON REDACTIONS: This session re-wrote the project `.env` to add credentials
+reused from v1 — an OpenAI API key, a Supabase service key, and the Google OAuth
+client secret + refresh token. Those live-secret values were written into the
+(gitignored) `.env` and are referred to here only by name / as [REDACTED_*];
+none are reproduced. Supabase message_ids and Google Slides/Drive links that
+appeared in tool output are internal identifiers, not secrets, and are kept.
+
+--------------------------------------------------------------------------------
+USER:
+"additional steps to add to the /make-uncharted-ice-proposal skill: (1) Find the
+client's logo and replace the reference file's client logo with it. (2) email
+liv@myadventuregroup.com.au the link of the final proposal output."
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+LOGO SWAP: Inspected the template's image geometry and found the client (SWIM)
+logo appears as 7 image objects — the cover logo (a slide-1 image) + the
+right-hand logo in the footer lockup on slides 3/4/6/7/8/12 — while the "My
+Adventure Group" logo (footer left, x≈0.88") is separate. Because Drive copies
+preserve object IDs, hardcoded the 7 SWIM-logo IDs in config.CLIENT_LOGO_IMAGE_IDS
+and added slides_service.replace_logo() (replaceImage, CENTER_INSIDE, filters to
+IDs present) + a v2_tools.py `replace-logo` subcommand. Verified live on the
+Tilray deck with a public dark-bg Tilray PNG from companieslogo.com: all 7 slots
+became TILRAY BRANDS on cover + footers, MAG logo/photos/text untouched.
+
+EMAIL: Added src/gmail_service.send_email(), a Gmail client to google_clients,
+gmail.send to GOOGLE_SCOPES (already granted on the reused token — no re-consent),
+config.NOTIFY_EMAIL (default liv@myadventuregroup.com.au, env override), and a
+v2_tools.py `email-proposal` subcommand. Verified by sending a test email to the
+account owner (julienne@, not Liv) — succeeded.
+
+Updated SKILL.md (new step 8 swap logo, step 11 email Liv, verify folded in) and
+CLAUDE.md/as_built.txt. All modules compiled.
+
+--------------------------------------------------------------------------------
+USER:
+"turn this into a claude code routine that does the exact same steps and produces
+the same output." After a clarifying round: DON'T copy v1's process — copy the
+make-uncharted-ice-proposal SKILL's process exactly. Notes come from a new
+`demo_notes_link` column on proposal_demo_notes_email_logs; also read an
+`additional_notes` column for extra context. Trigger: an API trigger the user
+configures, which reads unprocessed rows. LLM: OpenAI. Logo: auto-guess + flag.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Entered plan mode; inspected the live Supabase table (project aivitcomiywiysrfwqxt
+/ MAGTestProject) and confirmed the added columns demo_notes_link (Drive link) +
+additional_notes, plus has_fathom_notes. Wrote a plan to build an automated
+pipeline mirroring the skill (not v1), approved by the user.
+
+Built: main.py (entrypoint), pipeline.py (drains the queue: for each unprocessed
+row -> transcribe demo_notes_link -> client folder -> move notes in + save
+transcription -> copy template -> highlight-safe tailor of slides 1/2-3/5-7/12 +
+cover layout -> swap logo -> email Liv -> mark row processed; per-row try/except,
+unconditional mark so bad rows aren't retried forever). New helpers:
+src/notes_service.py (OpenAI vision transcription, folds in additional_notes),
+src/slides_tailor.py (OpenAI -> highlight-safe find/replace edits mapped into
+slides_service.apply_edits), src/supabase_service.py (list_unprocessed /
+mark_row_processed), plus copies of v1's src/llm_client.py + src/logo_service.py.
+config/.env/requirements gained OpenAI + Supabase settings ([REDACTED_OPENAI_KEY],
+[REDACTED_SUPABASE_SERVICE_KEY]); a /run-uncharted-ice-pipeline skill was added.
+
+LIVE TEST: inserted one unprocessed test row (Tilray notes PDF already in Drive +
+an additional_notes line), ran `python main.py` with NOTIFY_EMAIL overridden to
+the owner. It transcribed via OpenAI, applied ~31 highlight-safe edits, swapped
+the logo (Tilray favicon), emailed the owner, and marked the row needs_review.
+Thumbnail check: highlights preserved (OBJECTIVES/INVESTMENT), pricing
+AU$12,500->AU$8,500, dates/cover tailored. Found + fixed a real bug: the initial
+"never touch highlighted runs" rule left slide 12 reading "3-DAY IN-PERSON
+FULL-DAY SALES SESSION"; refined the rule to "a find may replace a highlighted run
+in full but must never span a highlight boundary" and re-ran -> "FULL-DAY
+IMMERSIVE SESSION" correct. Noted the honest limitation: OpenAI's slide-5
+(multi-day framework) tailoring was imperfect — flagged by needs_review, the
+intended human-review path.
+
+Cleanup: trashed the two test-generated decks, deleted the test queue row (queue
+back to 0 unprocessed). Updated CLAUDE.md + as_built.txt to document both run
+modes (interactive skill vs automated pipeline), the queue contract, and the
+critical highlight rule.
+
+--------------------------------------------------------------------------------
+USER:
+Invoked /dcp.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Ran the dcp steps: wrote this chat-history segment (redacting the .env secrets),
+confirmed as_built.txt + CLAUDE.md were already updated during the build, then
+committed and pushed to origin/main. Both demo-note PDFs remained gitignored.
+
+================================================================================
+END OF EXPORT
+================================================================================

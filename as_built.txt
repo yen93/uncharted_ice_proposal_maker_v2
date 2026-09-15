@@ -4,12 +4,18 @@ Last updated: 2026-09-15
 ================================================================================
 
 OVERVIEW
-- Interactive Claude Code routine (a /skill, NOT an automated pipeline) that turns
-  a client's demo-call notes into a tailored "Uncharted Ice" sales proposal deck.
+- Turns a client's demo-call notes into a tailored "Uncharted Ice" sales proposal
+  deck. TWO run modes sharing the same helpers + output:
+  (A) Interactive /skill (make-uncharted-ice-proposal) — Claude drives it from a
+      pasted Drive link; best quality.
+  (B) Automated pipeline (python main.py) — drains a Supabase queue behind a
+      user-configured API trigger; uses OpenAI for the transcription + tailoring
+      steps Claude does interactively.
 - Strategy: copy a master template deck, then edit ONLY the client-specific slides
   in place (preserving the deck's exact design/highlights) and leave the finished
   slides untouched. In-place edits use scoped Slides `replaceAllText`, which keeps
   every surrounding text run's styling — the fix for v1's per-word-highlight loss.
+  Then swap the client logo and email the link to Liv.
 
 SLIDE MAP (1-indexed; in config.py)
 - TAILOR (retext in place, keep design): 1, 2, 3, 5, 6, 7, 12
@@ -18,12 +24,16 @@ SLIDE MAP (1-indexed; in config.py)
 SCRIPTS
 - v2_tools.py — CLI the skill shells out to; one Google operation per subcommand,
   each prints JSON. Subcommands: fetch-notes, make-folder, move-file,
-  copy-template, save-text, dump-slides, apply-edits, thumbnails. Accepts raw IDs
-  or full Drive/Slides URLs.
+  copy-template, save-text, dump-slides, apply-edits, replace-logo, thumbnails,
+  email-proposal. Accepts raw IDs or full Drive/Slides URLs.
   Requires: .env (Google OAuth) + project_vars.txt.
 - config.py — loads .env + project_vars.txt; extracts PROJ_DRIVE_FOLDER_ID and
-  V2_TEMPLATE_ID, holds the slide map and Google scopes (drive, presentations).
-- src/google_clients.py — builds Drive + Slides API clients from the refresh token.
+  V2_TEMPLATE_ID, holds the slide map, the client-logo image IDs
+  (CLIENT_LOGO_IMAGE_IDS), the notification recipient (NOTIFY_EMAIL, default
+  liv@myadventuregroup.com.au), and Google scopes (drive, presentations,
+  gmail.send).
+- src/google_clients.py — builds Drive + Slides + Gmail API clients from the
+  refresh token.
 - src/drive_service.py — create_client_folder (folder named the bare client name,
   reuse-if-exists), move_file_into_folder (parent swap; copy fallback if not
   movable), duplicate_template, download_file_bytes (exports Google-native files to
@@ -31,42 +41,80 @@ SCRIPTS
 - src/slides_service.py — dump() (per-slide + per-USED-layout, per-shape, per-RUN
   text with colours/bold/size), apply_edits() (scoped replaceAllText via
   pageObjectIds; a slide_id OR a layout_id can be targeted; reports occurrences),
-  thumbnails() (getThumbnail -> PNG for visual verification).
+  replace_logo() (replaceImage on CLIENT_LOGO_IMAGE_IDS with a public URL,
+  CENTER_INSIDE; filters to IDs present in the deck), thumbnails() (getThumbnail
+  -> PNG for visual verification).
+- src/gmail_service.py — send_email() sends the "proposal ready" notification via
+  the Gmail API as the account owner.
 - oauth_setup.py — one-time OAuth consent to mint GOOGLE_REFRESH_TOKEN into .env.
   Normally unnecessary (token reused from v1). Requires: GOOGLE_CLIENT_ID/SECRET.
 
+AUTOMATED-PIPELINE SCRIPTS (mode B)
+- main.py — entrypoint; calls pipeline.run_once(). The API trigger invokes this.
+- pipeline.py — orchestrator: reads unprocessed Supabase rows and, per row, runs
+  the skill's exact steps (transcribe demo_notes_link -> folder -> move notes +
+  save transcription -> copy template -> tailor -> logo swap -> email Liv -> mark
+  row processed). Per-row try/except; marks every row (success/needs_review/error).
+- src/notes_service.py — transcribe(bytes, mime, additional_notes) via OpenAI
+  vision -> structured fields (folds in the row's additional_notes).
+- src/slides_tailor.py — build_edits(fields, additional_notes, dump) via OpenAI ->
+  highlight-safe find/replace edits mapped into slides_service.apply_edits format.
+  Critical rule: a `find` never spans a highlight boundary but may replace a
+  highlighted run in full.
+- src/supabase_service.py — get_client(), list_unprocessed(), mark_row_processed().
+- src/llm_client.py, src/logo_service.py — copied from v1 (OpenAI tool-call helper;
+  favicon-URL logo guess).
+
 AUTOMATIONS / ROUTINES
-- .claude/skills/make-uncharted-ice-proposal/SKILL.md — the routine, run manually
-  via /make-uncharted-ice-proposal inside Claude Code. Steps: transcribe notes ->
-  create client folder -> transfer notes + save transcription -> copy master
-  template -> dump/inspect -> tailor slides 1/2-3/5-7/12 in place (incl. cover
-  tagline+date on the layout) -> leave 4/8-11/13 -> render thumbnails & verify ->
-  report folder+deck links and a QA note. No cron/cloud schedule.
+- (A) .claude/skills/make-uncharted-ice-proposal/SKILL.md — interactive, run via
+  /make-uncharted-ice-proposal. Steps: transcribe -> folder -> transfer notes +
+  save transcription -> copy template -> dump/inspect -> tailor 1/2-3/5-7/12 in
+  place (incl. cover tagline+date on the layout) -> leave 4/8-11/13 -> swap logo ->
+  thumbnails & verify -> report -> email Liv.
+- (B) python main.py (a.k.a. /run-uncharted-ice-pipeline) — automated, invoked by a
+  user-configured API trigger. Same steps, no human loop, OpenAI-driven; flags
+  uncertain output as needs_review. No cron in-repo (the user wires the trigger).
 
 EXTERNAL INTEGRATIONS
-- Google Drive API + Google Slides API (googleapis.com) — accessed via
+- Google Drive API + Google Slides API + Gmail API (googleapis.com) — accessed via
   google-api-python-client using an OAuth refresh token. Credentials in .env
   (gitignored), reused from ../uncharted_ice_proposal_maker (same Google account,
-  julienne@myadventuregroup.com.au; that token's scopes are a superset of the
-  drive+presentations scopes v2 needs). No OpenAI / Supabase / Fathom — v2 drops
-  all of v1's OCR/dedup/enrichment dependencies (Claude transcribes the notes
-  directly).
+  julienne@myadventuregroup.com.au; that token's granted scopes are a superset,
+  including gmail.send, so no new consent was needed). No OpenAI / Supabase /
+  Fathom — v2 drops all of v1's OCR/dedup/enrichment dependencies (Claude
+  transcribes the notes directly).
+- Gmail send — the routine emails the finished proposal's links to
+  config.NOTIFY_EMAIL (liv@myadventuregroup.com.au; NOTIFY_EMAIL env override) from
+  the account owner's mailbox.
+- OpenAI (api.openai.com) — automated pipeline only; transcribes the demo notes
+  (vision) and generates the slide-tailoring edits. Key in .env (OPENAI_API_KEY),
+  model config.OPENAI_MODEL (default gpt-5.6-luna). Reused from v1.
+- Supabase (aivitcomiywiysrfwqxt / MAGTestProject) — automated pipeline only; the
+  proposal_demo_notes_email_logs queue. Service key in .env (gitignored). Reused
+  from v1.
 
-FIXED RESOURCES (in project_vars.txt)
+FIXED RESOURCES (in project_vars.txt / config.py)
 - Master "Proposals" Drive folder: 16xjpO2qFGxPBXRvirx86hc_kmnyXALq6 (every client
   folder is created under it).
 - Master template deck: 1Ho1sCDir6bu3UfsJF3MWyJuSchGjjWQ_f9aAs9viM50. NOTE: its
-  cover (slide 1) content — title, client tagline, date, logos — lives on a custom
-  layout ("Custom Layout 4"), not on the slide; dump() surfaces used layouts so the
-  tagline/date are editable via a layout-scoped replaceAllText. The client logo on
-  the layout is NOT auto-swapped (hand-placed). The template is currently
-  SWIM-tailored, so a meaningful live test should use a different client's notes.
+  cover (slide 1) TITLE/tagline/date live on a custom layout ("Custom Layout 4"),
+  not on the slide; dump() surfaces used layouts so the tagline/date are editable
+  via a layout-scoped replaceAllText. The template is currently SWIM-tailored, so
+  its SWIM logo is what replace-logo swaps out.
+- CLIENT_LOGO_IMAGE_IDS (config.py) — the 7 image object IDs of the client (SWIM)
+  logo: the cover logo (a slide-1 image) + the right-hand logo in the footer
+  lockup on slides 3/4/6/7/8/12. Stable across copies (Drive preserves object IDs).
+  The "My Adventure Group" logo (footer left) is intentionally excluded.
 
 DATA STORES
-- None. (No Supabase/dedup DB; v2 is manual/on-demand.) Transient run artifacts
-  (downloaded notes, thumbnails, edits.json) live in the session scratchpad.
+- Supabase table proposal_demo_notes_email_logs (project aivitcomiywiysrfwqxt) — the
+  automated pipeline's work queue (shared with v1). Columns used: id, demo_notes_link,
+  additional_notes, is_processed, status, error_message, proposal_link, processed_at.
+  The interactive skill uses no data store. Transient run artifacts (thumbnails,
+  edits.json) live in the session scratchpad.
 
 SETUP
 - pip install -r requirements.txt (google-api-python-client, google-auth,
-  google-auth-oauthlib, python-dotenv, requests). Python 3.14 used in this build.
+  google-auth-oauthlib, python-dotenv, requests, openai, supabase). Python 3.14
+  used in this build.
 ================================================================================

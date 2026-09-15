@@ -10,9 +10,13 @@ Usage:
     python v2_tools.py save-text     <folder_id> "<filename>" <local_text_path>
     python v2_tools.py dump-slides   <presentation_link_or_id>
     python v2_tools.py apply-edits   <presentation_link_or_id> <edits_json_path>
+    python v2_tools.py replace-logo  <presentation_link_or_id> <public_image_url>
     python v2_tools.py thumbnails    <presentation_link_or_id> <1,2,3,...> <out_dir>
+    python v2_tools.py email-proposal "<client name>" "<deck_url>" "<folder_url>"
 
 All IDs may be passed as raw IDs or as full Google Drive/Slides URLs.
+`email-proposal` sends to config.NOTIFY_EMAIL (default liv@myadventuregroup.com.au;
+override with the NOTIFY_EMAIL env var).
 """
 
 import json
@@ -20,7 +24,7 @@ import re
 import sys
 
 import config
-from src import drive_service, slides_service
+from src import drive_service, gmail_service, slides_service
 from src.google_clients import GoogleClients
 
 _FILE_RE = re.compile(r"/(?:file/d|presentation/d|document/d|spreadsheets/d)/([a-zA-Z0-9_-]+)")
@@ -92,9 +96,28 @@ def cmd_apply_edits(clients, presentation_link, edits_json_path):
     _emit(slides_service.apply_edits(clients.slides, _resolve_id(presentation_link), edits))
 
 
+def cmd_replace_logo(clients, presentation_link, image_url):
+    _emit(slides_service.replace_logo(
+        clients.slides, _resolve_id(presentation_link), image_url, config.CLIENT_LOGO_IMAGE_IDS
+    ))
+
+
 def cmd_thumbnails(clients, presentation_link, slides_csv, out_dir):
     indexes = [int(x) for x in slides_csv.replace(" ", "").split(",") if x]
     _emit(slides_service.thumbnails(clients.slides, _resolve_id(presentation_link), indexes, out_dir))
+
+
+def cmd_email_proposal(clients, client_name, deck_url, folder_url):
+    subject = f"Uncharted Ice proposal ready — {client_name}"
+    body = (
+        f"Hi Liv,\n\n"
+        f"The Uncharted Ice proposal for {client_name} has been generated and is ready for review.\n\n"
+        f"Proposal deck: {deck_url}\n"
+        f"Client folder: {folder_url}\n\n"
+        f"Please review before sending — in particular double-check the client logo and any figures.\n\n"
+        f"— Automated by the Uncharted Ice proposal maker"
+    )
+    _emit(gmail_service.send_email(clients.gmail, config.NOTIFY_EMAIL, subject, body))
 
 
 COMMANDS = {
@@ -105,7 +128,9 @@ COMMANDS = {
     "save-text": (cmd_save_text, 3),
     "dump-slides": (cmd_dump_slides, 1),
     "apply-edits": (cmd_apply_edits, 2),
+    "replace-logo": (cmd_replace_logo, 2),
     "thumbnails": (cmd_thumbnails, 3),
+    "email-proposal": (cmd_email_proposal, 3),
 }
 
 

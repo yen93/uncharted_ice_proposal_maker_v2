@@ -222,6 +222,46 @@ def apply_edits(slides, presentation_id: str, edits: list[dict]) -> dict:
 # Thumbnails (visual verification)
 # ---------------------------------------------------------------------------
 
+def replace_logo(slides, presentation_id: str, image_url: str, logo_object_ids: list[str]) -> dict:
+    """Swaps the client-logo image(s) for `image_url` via `replaceImage`.
+
+    Only replaces the logo object IDs that actually exist in this deck (they are
+    stable across copies, but we filter defensively). Uses CENTER_INSIDE so the
+    new logo keeps its aspect ratio inside each existing logo box. Google fetches
+    `image_url` server-side, so it must be a public http(s) image (png/jpg/gif),
+    under 50MB and 25 megapixels. Returns {replaced: [ids], missing: [ids],
+    image_url}. Raises if the batch fails (e.g. a bad/unfetchable URL) so the
+    caller can report it — the deck's text edits are already committed separately,
+    so a logo failure never rolls those back."""
+    presentation = slides.presentations().get(
+        presentationId=presentation_id, fields="slides.pageElements.objectId,layouts.pageElements.objectId"
+    ).execute()
+    present_ids = set()
+    for page in presentation.get("slides", []) + presentation.get("layouts", []):
+        for el in page.get("pageElements", []):
+            present_ids.add(el.get("objectId"))
+
+    target_ids = [oid for oid in logo_object_ids if oid in present_ids]
+    missing = [oid for oid in logo_object_ids if oid not in present_ids]
+
+    if target_ids:
+        requests = [
+            {
+                "replaceImage": {
+                    "imageObjectId": oid,
+                    "imageReplaceMethod": "CENTER_INSIDE",
+                    "url": image_url,
+                }
+            }
+            for oid in target_ids
+        ]
+        slides.presentations().batchUpdate(
+            presentationId=presentation_id, body={"requests": requests}
+        ).execute()
+
+    return {"replaced": target_ids, "missing": missing, "image_url": image_url}
+
+
 def thumbnails(slides, presentation_id: str, slide_indexes: list[int], out_dir: str) -> dict:
     """Saves a PNG thumbnail of each requested slide (1-based index) to out_dir.
     Returns {saved: [{index, slide_id, path}...]}. The contentUrl from

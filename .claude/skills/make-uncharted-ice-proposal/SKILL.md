@@ -93,29 +93,53 @@ client-specific wording on the client slides and leave everything else exact.
    - **Slide 1:** tailor the subtitle line on the slide (e.g. the
      "3 DAY … RETREAT WITH …" shape) and, on the cover **layout**, the client
      tagline and the date. Keep the "UNCHARTED ICE" program title as-is. Do NOT
-     move logos, text boxes, or anything's placement; the client logo is
-     hand-placed (see QA note).
+     move logos, text boxes, or anything's placement.
    - **Keep replacements close to the original length** so text doesn't overflow
      its box. Trim detail rather than exceeding it.
    - Read the `occurrences` in the result — a `0` means your `find` didn't match
      (fix the exact text and retry that edit).
 
-7. **Leave slides 4, 8-11, 13 alone.** No edits.
+7. **Leave slides 4, 8-11, 13 alone.** No text edits. (The client logo on them is
+   still swapped in step 8 — a wrong client logo there would be just as wrong.)
 
-8. **Verify visually.**
+8. **Swap the client logo.**
+   The template ships with the previous client's (SWIM) logo on the cover and in
+   the footer of several slides. Replace it with the new client's logo:
+   - Find a **public, direct** image URL for the client's logo — a link ending in
+     `.png`/`.jpg` that Google's servers can fetch without login (companieslogo.com,
+     brandfetch, a press kit, Wikimedia, etc.; use WebSearch/WebFetch to get the
+     direct file URL, not a page URL). **Prefer a white/mono "dark background"
+     version** — the cover and footers sit on a dark panel.
+   - `python v2_tools.py replace-logo <new_deck_id> "<image_url>"` — this swaps all
+     of the client-logo image slots (`config.CLIENT_LOGO_IMAGE_IDS`) at once and
+     reports which were `replaced`/`missing`. The "My Adventure Group" logo is left
+     untouched. If it errors, the URL probably isn't publicly fetchable — pick
+     another and retry (text edits are unaffected).
+   - If you genuinely can't find a good logo, skip and flag it in the QA note for
+     hand-placement rather than inserting a poor one.
+
+9. **Verify visually.**
    `python v2_tools.py thumbnails <new_deck_id> "1,2,3,5,6,7,12" "<scratchpad>/thumbs"`
    `Read` each PNG. Check: wording is correct and client-tailored; highlights,
-   bullet colours, fonts, and placement are unchanged from the template; nothing
-   overflows or overlaps. If anything is off, fix it with a follow-up
-   `apply-edits` and re-render that slide. (Optionally also render 4/8-11/13 once
-   to confirm they're identical to the template.)
+   bullet colours, fonts, and placement are unchanged from the template; the
+   **client logo is the right one and looks right on the dark panel** (not
+   clipped, not a dark-on-dark blob); nothing overflows or overlaps. If anything
+   is off, fix it with a follow-up `apply-edits` / `replace-logo` and re-render.
+   (Optionally also render 4/8/11/13 once to confirm they're otherwise identical.)
 
-9. **Report.** Give the user:
-   - the folder link and the deck edit link,
-   - a one-line summary of what you tailored per slide,
-   - a short **QA note** of anything a human should double-check before sending
-     (e.g. a figure you inferred, a possible overflow, the client logo on slide 1
-     which is not auto-swapped — add it by hand if needed).
+10. **Report.** Give the user:
+    - the folder link and the deck edit link,
+    - a one-line summary of what you tailored per slide, and whether the logo was
+      swapped (and from what source),
+    - a short **QA note** of anything a human should double-check before sending
+      (e.g. a figure you inferred, a possible overflow, the swapped logo — confirm
+      it's correct and on-brand).
+
+11. **Email the proposal link.**
+    `python v2_tools.py email-proposal "<Client Name>" "<deck_url>" "<folder_url>"`
+    This emails the deck + folder links to `config.NOTIFY_EMAIL`
+    (liv@myadventuregroup.com.au) from the account owner's Gmail. Confirm the
+    result's `message_id`, and tell the user the email was sent (to whom).
 
 ## Notes / gotchas
 
@@ -123,9 +147,12 @@ client-specific wording on the client slides and leave everything else exact.
   Always go through `apply-edits` (scoped `replaceAllText`), which preserves the
   surrounding runs. This is the whole reason v2 exists (v1's rewriter couldn't
   keep per-word highlights).
-- The **client logo on slide 1 is not swapped automatically** (it lives on a
-  custom layout). Flag it in the QA note so it's placed by hand, matching the
-  template's logo placement.
+- **The client logo IS swapped** (step 8, `replace-logo`) across the cover and
+  every footer, via fixed object IDs in `config.CLIENT_LOGO_IMAGE_IDS` (stable
+  because Drive copies preserve object IDs). It still needs a human eye —
+  auto-found logos can be the wrong variant/colour — so verify it in step 9 and
+  flag it in the QA note.
 - Safe to re-run: `make-folder` reuses an existing client folder. Re-running
   `apply-edits` after the wording is already changed will just report `0`
-  occurrences for phrases that no longer exist — harmless.
+  occurrences for phrases that no longer exist — harmless. `replace-logo` is
+  idempotent too (just replaces the same slots again).
