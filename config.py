@@ -73,7 +73,9 @@ CLIENT_LOGO_IMAGE_IDS = [
     "g3f6c7e6914d_0_11",  # slide 12 footer
 ]
 
-# Where the "your proposal is ready" email is sent when the routine finishes.
+# The reviewer who is notified when a proposal is ready — always Liv, never the
+# account owner. (The NOTIFY_EMAIL env override exists only to repoint the reviewer
+# if the role ever changes; leave it unset in production so Liv is notified.)
 NOTIFY_EMAIL = os.environ.get("NOTIFY_EMAIL") or "liv@myadventuregroup.com.au"
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")

@@ -26,6 +26,8 @@ pasted link, and uses OpenAI (not you) to transcribe the notes and write the sli
 
 - Safe to re-run: rows are marked `is_processed=true` when done, so they drop out of the queue;
   a failed row is marked `error` (not retried forever).
-- Each finished proposal emails its links to `config.NOTIFY_EMAIL` (liv@myadventuregroup.com.au).
-  To avoid emailing Liv during a test, run with `NOTIFY_EMAIL=<your address>` set in the env.
+- Each finished proposal emails its links to **the reviewer, Liv**
+  (`config.NOTIFY_EMAIL` = liv@myadventuregroup.com.au). This is intentional — the
+  reviewer is always the one notified, never the account owner. Do not redirect the
+  notification to the owner.
 - `ModuleNotFoundError` → `pip install -r requirements.txt` and retry.

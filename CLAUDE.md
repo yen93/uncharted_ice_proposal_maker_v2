@@ -129,11 +129,12 @@ python main.py            # drains the Supabase queue once (safe to re-run)
   Adventure Group" logo (left of each footer) is deliberately excluded. If the
   master template is ever rebuilt, re-derive these IDs via image geometry (client
   logo sits at x≈1.98" in footers; MAG at x≈0.88").
-- **A "proposal ready" email** goes to `config.NOTIFY_EMAIL`
-  (liv@myadventuregroup.com.au, override via the `NOTIFY_EMAIL` env var) through
-  `src/gmail_service.py`. This needs the `gmail.send` scope, which is in
-  `config.GOOGLE_SCOPES` and already granted on the reused v1 refresh token — no
-  new consent required.
+- **A "proposal ready" email** goes to the reviewer, **Liv** (`config.NOTIFY_EMAIL`
+  = liv@myadventuregroup.com.au) through `src/gmail_service.py` — never to the
+  account owner. The `NOTIFY_EMAIL` env override exists only to repoint the reviewer
+  if that role changes; leave it unset in production. This needs the `gmail.send`
+  scope, which is in `config.GOOGLE_SCOPES` and already granted on the reused v1
+  refresh token — no new consent required.
 - `dump-slides` reports per-**run** styling on purpose — that run-level view is
   how you tell a highlighted word from its neighbours before writing edits. Keep
   it.

@@ -1,0 +1,50 @@
+================================================================================
+CHAT HISTORY EXPORT — 2026-09-15
+Session: Clarified that the proposal-ready notification always goes to the
+reviewer (Liv), never the account owner.
+(Continues from 1509261323_chat_history.txt.)
+================================================================================
+
+(No redactions: this segment involved no secrets — only doc/comment edits.)
+
+--------------------------------------------------------------------------------
+USER:
+"liv is the reviewer. notify her not me. update the routine accordingly but do not
+run a test. i'll test manually."
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Clarified that the routine already defaulted to Liv (config.NOTIFY_EMAIL =
+liv@myadventuregroup.com.au); the account owner had only received email during
+earlier testing because the recipient was overridden via the NOTIFY_EMAIL env var
+in those test commands. Confirmed both send sites (pipeline.py and the interactive
+skill's email-proposal) use config.NOTIFY_EMAIL, and that the only julienne@
+reference in code is the SENDER identity (the mailbox the mail is sent from), not
+a recipient.
+
+Made docs/comment-only edits to make "reviewer = Liv, never the owner" explicit and
+to stop anything nudging the notification toward the owner:
+- config.py — reworded the NOTIFY_EMAIL comment: Liv is the reviewer; the env
+  override is only for repointing the role, leave unset in production.
+- .claude/skills/run-uncharted-ice-pipeline/SKILL.md — removed the "email yourself
+  during a test" note; states the reviewer (Liv) is always notified and must not be
+  redirected to the owner.
+- .claude/skills/make-uncharted-ice-proposal/SKILL.md (step 11) and CLAUDE.md —
+  reworded to name Liv as the reviewer recipient.
+
+Did NOT run any test (per instruction). config.py compiles; a grep confirmed
+config.NOTIFY_EMAIL resolves to Liv and both send sites use it.
+
+--------------------------------------------------------------------------------
+USER:
+Invoked /dcp.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Ran the dcp steps: wrote this chat-history segment; left as_built.txt unchanged
+(the built state — recipient already Liv — didn't change) and CLAUDE.md was already
+updated as part of this session's edits; then committed and pushed to origin/main.
+
+================================================================================
+END OF EXPORT
+================================================================================

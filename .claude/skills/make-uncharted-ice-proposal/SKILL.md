@@ -135,11 +135,12 @@ client-specific wording on the client slides and leave everything else exact.
       (e.g. a figure you inferred, a possible overflow, the swapped logo — confirm
       it's correct and on-brand).
 
-11. **Email the proposal link.**
+11. **Email the proposal link to the reviewer.**
     `python v2_tools.py email-proposal "<Client Name>" "<deck_url>" "<folder_url>"`
-    This emails the deck + folder links to `config.NOTIFY_EMAIL`
-    (liv@myadventuregroup.com.au) from the account owner's Gmail. Confirm the
-    result's `message_id`, and tell the user the email was sent (to whom).
+    This emails the deck + folder links to the reviewer, **Liv**
+    (`config.NOTIFY_EMAIL` = liv@myadventuregroup.com.au), from the account owner's
+    Gmail. The reviewer is always the recipient — do not send it to the owner
+    instead. Confirm the result's `message_id` and tell the user it was sent to Liv.
 
 ## Notes / gotchas
 
