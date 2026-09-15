@@ -7,4 +7,6 @@ __pycache__/
 !.claude/skills/
 # Client demo-call notes (private business data — kept out of the repo)
 *.pdf
+# Routine API token(s) — live secrets, never commit
+routine_token*
 

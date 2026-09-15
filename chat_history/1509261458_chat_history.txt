@@ -1,0 +1,115 @@
+================================================================================
+CHAT HISTORY EXPORT — 2026-09-15
+Session: Created the cloud routine at claude.ai/code/routines, then (after an
+OCR failure) rebuilt it to be Claude-driven — Claude transcribes + tailors
+itself, dropping OpenAI entirely.
+(Continues from 1509261331_chat_history.txt.)
+================================================================================
+
+NOTE ON REDACTIONS: Creating/updating the cloud routine required embedding the
+project's live credentials in the routine prompt (the cloud clone has no .env),
+mirroring the user's existing v1 routine. The Google OAuth client secret +
+refresh token, the Supabase service key, and (in the first version) the OpenAI
+API key therefore appeared in the RemoteTrigger create/update calls and their
+echoed responses. Separately, a working-tree file
+"routine_token - uncharted-ice-proposal-maker-v2.txt" was found to contain the
+routine's Anthropic API token (sk-ant-oat01-…). None of these live values are
+reproduced here — each is referred to only by name / as [REDACTED_*]. The token
+file was gitignored (routine_token*) so it is never committed.
+
+--------------------------------------------------------------------------------
+USER:
+"what is the name of the claude code routine you created? i cannot find it" —
+then clarified: "not a skill, a ROUTINE. it should be in https://claude.ai/code/routines".
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Realised the earlier deliverable was a /skill + python pipeline, not a scheduled
+cloud routine. Loaded the schedule skill + RemoteTrigger tool, listed the user's
+15 existing routines, and inspected v1's `sales-proposals-automation-hourly`
+(trig_01KNnjdscJ1KpMTEKqneqs1S) to learn the established pattern: the cloud clone
+has no .env (gitignored), so the routine PROMPT writes .env from embedded live
+creds, then runs `pip install` + `python main.py`, on the Default environment
+(env_01DYHNjMesGeuq9ABo7W6m6f, already network-allowlisted). Created a matching
+routine `uncharted-ice-proposal-maker-v2-hourly`
+(trig_016A8ahwJy4x7DKjxFhTmGh5), cron `45 * * * *`, repo
+yen93/uncharted_ice_proposal_maker_v2, using the WORKING refresh token
+([REDACTED_GOOGLE_REFRESH_TOKEN]) rather than v1's possibly-stale stored one, and
+the [REDACTED_OPENAI_KEY] + [REDACTED_SUPABASE_SERVICE_KEY]. Flagged that secrets
+live in the routine prompt (same as the whole fleet) and the ~7-day token-expiry
+caveat.
+
+--------------------------------------------------------------------------------
+USER:
+"insert a test row into the supabase table so i can manually run the routine".
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Inserted an unprocessed row (Tilray notes PDF link + additional_notes) and gave
+the run instructions.
+
+--------------------------------------------------------------------------------
+USER:
+"delete that row and add a new one instead — use this demo notes for Synergy:
+https://drive.google.com/file/d/1bHH1lw2MOT1GhRUaaXTPHVpxFNxCtpZi/view".
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Deleted the Tilray test row and inserted the Synergy row
+(c31c6a28-b597-41c9-8e51-6bc7605204c5, demo_notes_link = the Synergy PDF).
+
+--------------------------------------------------------------------------------
+USER:
+Reported the routine run marked the Synergy row `error` — transcription found
+client_org missing/unclear, so no deck/email. Asked: "what model are we using to
+transcribe the pdf notes? is it too dumb?"
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Confirmed the model is config.OPENAI_MODEL = gpt-5.6-luna (OpenAI's cheapest
+vision tier, inherited from v1). Downloaded and read the Synergy PDF: the client
+name "SYNERGY" is written large and clearly at the top — trivially readable — so
+the model, not the notes, was at fault. Diagnosed it as underpowered for
+handwriting and offered stronger models (gpt-5.6-terra / gpt-6-astra).
+
+--------------------------------------------------------------------------------
+USER:
+"do we really need a separate api key for the ocr? cant you (claude) just do it
+all in the routine?"
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Agreed — the routine's agent IS Claude (sonnet-5), which read SYNERGY fine, so it
+can do the transcription + tailoring itself and drop OpenAI. Implemented:
+(1) Added `queue-list` and `queue-done` subcommands to v2_tools.py (wrapping
+supabase_service) so a Claude-driven routine can read the queue and mark rows
+done; committed + pushed (64c96b1). (2) Rewrote the live routine via RemoteTrigger
+update to be Claude-driven: writes .env with ONLY Google + Supabase creds (no
+OpenAI), reads `.claude/skills/make-uncharted-ice-proposal/SKILL.md`, then for
+each queued row transcribes the notes itself, runs the v2_tools helpers for the
+mechanical steps (make-folder, move-file, copy-template, dump-slides, apply-edits,
+replace-logo, email-proposal), and marks the row done. Noted the 05:45 fire had
+already run on the OLD (OpenAI) prompt — that was the error the user saw; the new
+flow takes effect next fire (06:45 UTC). Reset the Synergy row to unprocessed for
+a manual retest. (Also noted the routine's display name dropped its `-hourly`
+suffix during the update; same id/link/schedule.)
+
+--------------------------------------------------------------------------------
+USER:
+Invoked /dcp.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Ran the dcp steps. Found two new untracked files: a routine-token file (live
+Anthropic token) which was gitignored (routine_token*) and NOT committed, and
+"150926 feedback from liv.txt" — Liv's slide-by-slice review of a generated
+proposal (slide 4 tailor to slide-3 objectives; slide 5 delete; slide 2 more
+detail + objectives; slide 7 relate to objectives; slides 8-10 check bonus; slide
+12 mention duration in delivery + highlight it) — committed as project content.
+Updated as_built.txt + CLAUDE.md to record the Claude-driven cloud routine and the
+queue CLI, wrote this history, and committed + pushed. Flagged Liv's feedback as a
+follow-up to implement.
+
+================================================================================
+END OF EXPORT
+================================================================================

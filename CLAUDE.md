@@ -13,12 +13,17 @@ helpers and produce the same output**:
    link to the notes; Claude drives the steps and does the transcription + tailoring
    with its own judgment. Best quality. This is the authoritative definition of the
    process.
-2. **Automated pipeline** — `python main.py` (`pipeline.py`), meant to sit behind an
-   **API trigger the user configures**. It drains the Supabase queue
-   `proposal_demo_notes_email_logs` (unprocessed rows) and runs the SAME steps
-   unattended, using **OpenAI** for the two steps Claude does interactively
-   (transcribe the notes, write the highlight-safe edits). Also runnable via the
-   `/run-uncharted-ice-pipeline` skill.
+2. **Automated cloud routine** — `uncharted-ice-proposal-maker-v2`
+   (`trig_016A8ahwJy4x7DKjxFhTmGh5` at claude.ai/code/routines, hourly at :45 UTC,
+   Default env). It is **Claude-driven**: the routine's own Claude agent drains the
+   Supabase queue `proposal_demo_notes_email_logs` (via `python v2_tools.py
+   queue-list`) and does the SAME steps itself — transcribing the notes with its
+   own vision and writing the highlight-safe edits — then `queue-done`. It does
+   **not** use OpenAI. Update its prompt/secrets via the RemoteTrigger tool.
+   - `python main.py` (`pipeline.py`, `/run-uncharted-ice-pipeline`) is an
+     OpenAI-based version of the same queue pipeline, kept as a fallback but NOT
+     used by the routine — its default model (`gpt-5.6-luna`) proved too weak at
+     handwriting OCR (missed a clearly-written client name). Prefer the routine.
 
 Both do: transcribe → make client folder → transfer notes → copy the master template
 → tailor the client slides in place → swap the client logo → email the link to Liv.

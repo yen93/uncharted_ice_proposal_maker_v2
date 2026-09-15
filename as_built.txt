@@ -22,11 +22,12 @@ SLIDE MAP (1-indexed; in config.py)
 - VERBATIM (leave untouched): 4, 8, 9, 10, 11, 13
 
 SCRIPTS
-- v2_tools.py — CLI the skill shells out to; one Google operation per subcommand,
-  each prints JSON. Subcommands: fetch-notes, make-folder, move-file,
-  copy-template, save-text, dump-slides, apply-edits, replace-logo, thumbnails,
-  email-proposal. Accepts raw IDs or full Drive/Slides URLs.
-  Requires: .env (Google OAuth) + project_vars.txt.
+- v2_tools.py — CLI the skill AND the cloud routine shell out to; one operation
+  per subcommand, each prints JSON. Subcommands: fetch-notes, make-folder,
+  move-file, copy-template, save-text, dump-slides, apply-edits, replace-logo,
+  thumbnails, email-proposal, queue-list (unprocessed Supabase rows), queue-done
+  (mark a row processed). Accepts raw IDs or full Drive/Slides URLs.
+  Requires: .env (Google OAuth; + Supabase for queue-list/queue-done).
 - config.py — loads .env + project_vars.txt; extracts PROJ_DRIVE_FOLDER_ID and
   V2_TEMPLATE_ID, holds the slide map, the client-logo image IDs
   (CLIENT_LOGO_IMAGE_IDS), the notification recipient (NOTIFY_EMAIL, default
@@ -71,9 +72,21 @@ AUTOMATIONS / ROUTINES
   save transcription -> copy template -> dump/inspect -> tailor 1/2-3/5-7/12 in
   place (incl. cover tagline+date on the layout) -> leave 4/8-11/13 -> swap logo ->
   thumbnails & verify -> report -> email Liv.
-- (B) python main.py (a.k.a. /run-uncharted-ice-pipeline) — automated, invoked by a
-  user-configured API trigger. Same steps, no human loop, OpenAI-driven; flags
-  uncertain output as needs_review. No cron in-repo (the user wires the trigger).
+- (B) Cloud routine "uncharted-ice-proposal-maker-v2"
+  (trig_016A8ahwJy4x7DKjxFhTmGh5 at claude.ai/code/routines), cron "45 * * * *"
+  (hourly at :45 UTC), Default environment env_01DYHNjMesGeuq9ABo7W6m6f, model
+  claude-sonnet-5, repo yen93/uncharted_ice_proposal_maker_v2. It is CLAUDE-DRIVEN:
+  the routine's own Claude agent writes .env (Google + Supabase only — NO OpenAI),
+  drains the queue via `python v2_tools.py queue-list`, and for each row does the
+  make-uncharted-ice-proposal steps itself (transcribes the notes with its own
+  vision, tailors highlight-safe, swaps logo, emails Liv) using the v2_tools
+  helpers, then `queue-done`. Secrets are embedded in the routine prompt (the
+  cloud clone has no .env), same pattern as the v1 fleet.
+- (C) python main.py (a.k.a. /run-uncharted-ice-pipeline) — the OpenAI-based
+  automated pipeline (pipeline.py + notes_service/slides_tailor). Still present as
+  a fallback but the cloud routine (B) no longer uses it, because gpt-5.6-luna was
+  too weak at handwriting OCR (missed a clearly-written client_org). Prefer the
+  Claude-driven routine.
 
 EXTERNAL INTEGRATIONS
 - Google Drive API + Google Slides API + Gmail API (googleapis.com) — accessed via
@@ -86,9 +99,10 @@ EXTERNAL INTEGRATIONS
 - Gmail send — the routine emails the finished proposal's links to
   config.NOTIFY_EMAIL (liv@myadventuregroup.com.au; NOTIFY_EMAIL env override) from
   the account owner's mailbox.
-- OpenAI (api.openai.com) — automated pipeline only; transcribes the demo notes
-  (vision) and generates the slide-tailoring edits. Key in .env (OPENAI_API_KEY),
-  model config.OPENAI_MODEL (default gpt-5.6-luna). Reused from v1.
+- OpenAI (api.openai.com) — the `python main.py` fallback path ONLY (transcription
+  + tailoring). Key in .env (OPENAI_API_KEY), model config.OPENAI_MODEL (default
+  gpt-5.6-luna — too weak at handwriting OCR). The Claude-driven cloud routine does
+  NOT use OpenAI. Reused from v1.
 - Supabase (aivitcomiywiysrfwqxt / MAGTestProject) — automated pipeline only; the
   proposal_demo_notes_email_logs queue. Service key in .env (gitignored). Reused
   from v1.
