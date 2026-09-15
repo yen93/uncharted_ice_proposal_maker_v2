@@ -119,6 +119,14 @@ slides in any order without re-numbering.
        objectives"; swap "SWIM's leadership and growth objectives" for the client's.
      - **Slide 7 ("HOW THE UNCHARTED ICE WORKS"):** relate the outcomes back to the
        client's learning objectives.
+     - **Slide 6 ("WHAT IS UNCHARTED ICE?") — tailor the OPENING too (Liv's
+       feedback):** this slide's expedition backstory has three paragraphs — (1) the
+       expedition backdrop, (2) the expedition facts, (3) a closing question to the
+       client. Don't tailor only the closing question: rework paragraphs 1 AND 2 so
+       the expedition reads as a mirror of THIS client's situation and objectives
+       (e.g. tie the resilience, decision-making and teamwork the journey demanded to
+       what the client's team faces), while keeping the factual expedition details
+       (the route, distances, temperatures, the Guinness world-first) accurate.
    - **Slide 12 (YOUR INVESTMENT) — duration (Liv's feedback):** the DELIVERY
      section must state the session **duration** and keep it **highlighted** like
      the template. The template highlights the run "3-DAY IN-PERSON"; replace that
