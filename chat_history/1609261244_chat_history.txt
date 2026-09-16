@@ -1,0 +1,126 @@
+================================================================================
+CHAT HISTORY EXPORT — 2026-09-16
+Session: Moved the proposal maker to routine-only operation, adding Fathom
+meeting-notes lookup, additional_notes usage, and a richer email to Liv.
+================================================================================
+
+NOTE ON REDACTIONS: this session fetched and re-saved the cloud routine's
+config via the RemoteTrigger tool, and the tool's JSON responses echoed the
+routine's embedded live credentials verbatim (Google OAuth client secret +
+refresh token, Supabase service key) multiple times. None of those values are
+reproduced below — mentions of them are described only as "the routine's
+embedded Google/Supabase credentials."
+
+--------------------------------------------------------------------------------
+USER:
+Gave four instructions for the proposal pipeline: (1) also read the
+`additional_notes` column on `proposal_demo_notes_email_logs` and factor it
+into proposal creation, not just the demo notes file; (2) use the Fathom
+connector to find meeting notes matching the client; (3) if a match is found,
+update `has_fathom_notes` and a `tag` column and use those notes in proposal
+creation too; (4) in the notification email to Liv, report whether Fathom
+notes were found, whether additional_notes were used, and whether a client
+logo was found.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Asked how broadly to apply the four changes (update the saved process only,
+run the current queue now, or both) via AskUserQuestion.
+
+--------------------------------------------------------------------------------
+USER:
+"DELETE THE SKILL, JUST UPDATE THE CLAUDE CLOUDE ROUTINE. THAT'S THE ONLY ONE
+WE ARE USING." — i.e. no interactive/manual skill at all; the hourly cloud
+routine (trig_016A8ahwJy4x7DKjxFhTmGh5) is the only surface to change.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Investigated the current setup: read CLAUDE.md and both skill files
+(make-uncharted-ice-proposal, run-uncharted-ice-pipeline), the v2_tools.py CLI
+and src/supabase_service.py, fetched the live routine config via
+`RemoteTrigger action:"get"`, and checked the live table schema for
+`proposal_demo_notes_email_logs` via Supabase MCP — found `has_fathom_notes`
+already existed but there was no `tag` column.
+
+Made the following changes:
+
+1. DB: added `tag text` to `proposal_demo_notes_email_logs` via a Supabase
+   migration (`add_tag_to_proposal_demo_notes_email_logs`).
+
+2. Code (src/supabase_service.py, v2_tools.py):
+   - `mark_row_processed` / `cmd_queue_done` now accept optional
+     `has_fathom_notes` (bool) and `tag` (text) and only write them when
+     provided (passing "-" leaves the column untouched).
+   - `cmd_email_proposal` now accepts three optional trailing args (a Fathom
+     note, an additional-notes note, a logo note) and appends a "Run summary"
+     block to Liv's notification email built from them.
+   - The CLI's command dispatch table changed from fixed argc to (min, max)
+     argc pairs to support these new optional trailing arguments; updated the
+     module docstring to match.
+   - Verified with `python -m py_compile`.
+
+3. Cloud routine (trig_016A8ahwJy4x7DKjxFhTmGh5), edited via RemoteTrigger:
+   - Rewrote the routine's prompt to be fully self-contained — since the
+     skills were being deleted, folded in the slide map, highlight rules,
+     and delete/bonus rules that used to live only in SKILL.md — and added:
+     explicit use of each row's `additional_notes`; a Fathom lookup step
+     (search_meetings/list_meetings/find_person keyed on the client, pulling
+     get_meeting_summary/transcript on a clear match, folding it into
+     tailoring, and recording `has_fathom_notes`+`tag`); and the 3-part email
+     run-summary to Liv.
+   - Granted the Fathom MCP tools (`mcp__Fathom__list_meetings`,
+     `search_meetings`, `find_person`, `get_meeting_summary`,
+     `get_meeting_transcript`, `get_recording_by_url`,
+     `get_recording_by_call_id`, `get_identity`) in the routine's
+     `allowed_tools` — the Fathom connector was already attached but its
+     tools weren't granted to the agent.
+   - Hit three API quirks while doing this, now documented in CLAUDE.md: a
+     top-level `session_request` partial update is rejected (requires the
+     full `worker` field); a top-level `allowed_tools` key is silently
+     ignored; and a `job_config.ccr` partial update replaces the whole `ccr`
+     object rather than merging, so the fix required re-sending the full
+     `environment_id` + `events` + `session_context` together.
+   - Confirmed via the update response that both the prompt and
+     `allowed_tools` (including the new Fathom tools) landed correctly in
+     `derived_state` and `session_request.config`.
+
+4. Deleted `.claude/skills/make-uncharted-ice-proposal/SKILL.md` and
+   `.claude/skills/run-uncharted-ice-pipeline/SKILL.md` — there is no
+   interactive or manual-drain skill left in this repo; the routine prompt is
+   now the sole, self-contained authoritative process definition.
+
+5. Rewrote CLAUDE.md: removed all references to the two deleted skills,
+   documented the routine as the only run path, added an "Editing the
+   routine" section covering the three RemoteTrigger gotchas above, and
+   documented the new Fathom-lookup / additional_notes / email-summary
+   behavior and the new optional CLI args.
+
+6. Committed (`0b2f6aa`, after amending once to add the attribution trailer
+   that was missed on the first attempt — the session's model/attribution
+   switched from Opus 4.8 to Sonnet 5 partway through) and pushed to
+   `origin/main` (17e6354..0b2f6aa). Left an untracked file
+   `160926 UPDATES TO IMPLEMENT.txt` (a saved copy of the user's original
+   4-point request) out of the commit — no prior convention of tracking such
+   scratch notes in this repo.
+
+Flagged for the user afterward: the routine can't visually verify its own
+Fathom-match quality or logo choice, so the first live run is worth a
+spot-check on the email and the `has_fathom_notes`/`tag` values.
+
+--------------------------------------------------------------------------------
+USER:
+Invoked /dcp.
+
+--------------------------------------------------------------------------------
+ASSISTANT:
+Ran the dcp steps: wrote this chat-history file (redacting the live
+credentials the RemoteTrigger tool had echoed during the session), updated
+as_built.txt to describe routine-only operation (removed the two skills,
+added the Fathom lookup / additional_notes / email-summary / tag column,
+documented the RemoteTrigger update gotchas), left CLAUDE.md as-is (already
+fully rewritten earlier this session to match current reality), and committed
++ pushed everything to origin/main.
+
+================================================================================
+END OF EXPORT
+================================================================================

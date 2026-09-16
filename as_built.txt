@@ -1,36 +1,44 @@
 ================================================================================
 AS-BUILT — uncharted_ice_proposal_maker_v2
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 ================================================================================
 
 OVERVIEW
 - Turns a client's demo-call notes into a tailored "Uncharted Ice" sales proposal
   deck. EVERYTHING IS CLAUDE-DRIVEN — no OpenAI / LLM-API dependency anywhere; Claude
   transcribes the notes, writes the edits, and reads the bonus checkboxes itself.
-  Two ways to run it, sharing the same helpers + output:
-  (A) Interactive /skill (make-uncharted-ice-proposal) — Claude drives it from a
-      pasted Drive link. Authoritative definition of the process.
-  (B) Automated cloud routine (claude.ai/code/routines) — a Claude agent drains a
-      Supabase queue hourly and does the same steps per row. /run-uncharted-ice-
-      pipeline is the manual, on-demand version of the same drain.
+- The ONLY way this runs is the automated cloud routine (claude.ai/code/routines);
+  there is no interactive skill and no manual on-demand skill in this repo anymore.
+  The routine's own prompt is the sole, self-contained, authoritative definition of
+  the process (fetch it via the RemoteTrigger tool, action:"get", to see it).
 - Strategy: copy a master template deck; edit the client-specific slides IN PLACE
   with scoped Slides `replaceAllText` (preserves every surrounding run's styling —
   the fix for v1's per-word-highlight loss); apply structural changes (delete the
   framework slide, keep only offered bonuses) LAST by objectId; swap the client logo;
-  email the link to Liv; mark the queue row done.
+  email a run summary to Liv; mark the queue row done.
+- Per row, before tailoring: reads the row's `additional_notes` (extra context typed
+  on the intake form) and searches the Fathom connector for a matching client
+  meeting, folding its summary/transcript into the tailoring when a clear match is
+  found (no forced weak matches). Records `has_fathom_notes` + `tag` back on the row.
 
-SLIDE MAP (indices on the freshly-copied 13-slide deck; authoritative list in the skill)
+SLIDE MAP (indices on the freshly-copied 13-slide deck; authoritative copy in the
+routine's prompt — RemoteTrigger action:"get" on trig_016A8ahwJy4x7DKjxFhTmGh5)
 - TAILOR (retext in place): 1, 2, 3, 4, 6, 7, 12 + the cover LAYOUT (tagline/date).
 - DELETE (last, by objectId): 5 "THE PROGRAM FRAMEWORK" always; bonus slides 9/10
   (and intro 8) conditional on the notes' ADD BONUS VALUE ticks.
 - VERBATIM: 11 (testimonials), 13 (closing), + kept bonus slides.
 
 SCRIPTS
-- v2_tools.py — the ONLY CLI; the skill AND the cloud routine shell out to it; one
-  operation per subcommand, each prints JSON. Subcommands: fetch-notes, make-folder,
-  move-file, copy-template, save-text, dump-slides, apply-edits, delete-slide,
-  replace-logo, thumbnails, email-proposal, queue-list, queue-done. Accepts raw IDs
-  or full Drive/Slides URLs. Requires: .env (Google OAuth; + Supabase for queue-*).
+- v2_tools.py — the ONLY CLI; the routine shells out to it; one operation per
+  subcommand, each prints JSON. Subcommands: fetch-notes, make-folder, move-file,
+  copy-template, save-text, dump-slides, apply-edits, delete-slide, replace-logo,
+  thumbnails, email-proposal, queue-list, queue-done. Accepts raw IDs or full
+  Drive/Slides URLs. Requires: .env (Google OAuth; + Supabase for queue-*).
+  - `email-proposal <client> <deck_url> <folder_url> [fathom_note] [additional_notes_note] [logo_note]`
+    — the three optional trailing args become a "Run summary" block in Liv's email.
+  - `queue-done <id> <status> <link|-> <error|-> [has_fathom_notes|-] [tag|-]` —
+    the two optional trailing args write `has_fathom_notes`/`tag`; "-" leaves them
+    untouched. Command dispatch supports (min, max) arg counts for this.
 - config.py — loads .env + project_vars.txt; PROJ_DRIVE_FOLDER_ID, V2_TEMPLATE_ID,
   slide-map constants (TAILOR_SLIDES, VERBATIM_SLIDES, ALWAYS_DELETE_SLIDE_IDS,
   BONUS_SLIDES, BONUS_INTRO_SLIDE_ID), CLIENT_LOGO_IMAGE_IDS, NOTIFY_EMAIL (Liv),
@@ -44,38 +52,39 @@ SCRIPTS
   reports occurrences), delete_slide() (deleteObject by objectId or index),
   replace_logo() (replaceImage on CLIENT_LOGO_IMAGE_IDS, filters to present IDs),
   thumbnails() (getThumbnail -> PNG).
-- src/supabase_service.py — get_client(), list_unprocessed(), mark_row_processed().
-- src/gmail_service.py — send_email() ("proposal ready" notification, as account owner).
+- src/supabase_service.py — get_client(), list_unprocessed(), mark_row_processed()
+  (now takes optional has_fathom_notes/tag, written only when provided).
+- src/gmail_service.py — send_email() (proposal-ready notification to Liv, as
+  account owner; the routine now appends a Fathom/additional-notes/logo summary).
 - oauth_setup.py — one-time OAuth consent to mint GOOGLE_REFRESH_TOKEN into .env.
   Normally unnecessary (token reused from v1). Requires: GOOGLE_CLIENT_ID/SECRET.
 
 AUTOMATIONS / ROUTINES
-- (A) .claude/skills/make-uncharted-ice-proposal/SKILL.md — interactive, run via
-  /make-uncharted-ice-proposal. Transcribe -> folder -> transfer notes + save
-  transcription -> copy template -> dump -> tailor 1/2/3/4/6/7/12 + cover layout
-  (slides 2/4/7 relate to slide-3 objectives; slide-12 duration highlighted) ->
-  bonus + delete slides (last, by objectId) -> swap logo -> thumbnails/verify ->
-  report -> email Liv.
-- (B) Cloud routine "uncharted-ice-proposal-maker-v2"
+- Cloud routine "uncharted-ice-proposal-maker-v2"
   (trig_016A8ahwJy4x7DKjxFhTmGh5 at claude.ai/code/routines), cron "45 * * * *"
   (hourly at :45 UTC), Default env env_01DYHNjMesGeuq9ABo7W6m6f, model
   claude-sonnet-5, repo yen93/uncharted_ice_proposal_maker_v2. CLAUDE-DRIVEN: the
-  agent writes .env (Google + Supabase only — NO OpenAI), reads the skill's SKILL.md,
-  drains the queue (queue-list), does the per-row steps with the v2_tools helpers,
-  then queue-done. Secrets are embedded in the routine prompt (the cloud clone has no
-  .env), same pattern as the v1 fleet. Manage via the RemoteTrigger tool.
-- .claude/skills/run-uncharted-ice-pipeline/SKILL.md — the manual, on-demand version
-  of (B): queue-list, then loop the make-uncharted-ice-proposal process per row.
-  Claude-driven, no OpenAI.
+  agent writes .env (Google + Supabase — NO OpenAI), drains the queue (queue-list),
+  does the per-row steps (Fathom lookup -> additional_notes -> transcribe -> tailor
+  -> structural -> logo -> email Liv with a run summary -> queue-done with
+  has_fathom_notes/tag), all defined inline in its own prompt (no SKILL.md — it was
+  deleted). Secrets are embedded in the routine prompt (the cloud clone has no
+  .env), same pattern as the v1 fleet. Has the Fathom MCP connector attached AND
+  its tools (mcp__Fathom__*) granted in allowed_tools. Manage via the RemoteTrigger
+  tool — see CLAUDE.md's "Editing the routine" section for update gotchas
+  (job_config.ccr partial updates replace the whole object; MCP tool grants go in
+  session_context.allowed_tools, separate from attaching the connector).
 
 EXTERNAL INTEGRATIONS
 - Google Drive + Slides + Gmail APIs (googleapis.com) — via google-api-python-client
   using an OAuth refresh token in .env (gitignored), reused from
   ../uncharted_ice_proposal_maker (same account julienne@myadventuregroup.com.au;
-  token scopes are a superset incl. gmail.send, so no new consent). NO OpenAI /
-  Fathom — Claude does the transcription + tailoring itself.
-- Gmail send — emails the finished proposal links to config.NOTIFY_EMAIL (Liv;
-  NOTIFY_EMAIL env override) from the account owner's mailbox.
+  token scopes are a superset incl. gmail.send, so no new consent).
+- Fathom (via the claude.ai Fathom MCP connector, attached to the routine) — used
+  to look up meeting notes matching the client for each queue row; read-only.
+- Gmail send — emails the finished proposal links + run summary to
+  config.NOTIFY_EMAIL (Liv; NOTIFY_EMAIL env override) from the account owner's
+  mailbox.
 - Supabase (aivitcomiywiysrfwqxt / MAGTestProject) — the queue (see DATA STORES).
   Service key in .env (gitignored). Reused from v1.
 
@@ -85,19 +94,20 @@ FIXED RESOURCES (in project_vars.txt / config.py)
 - Master template deck: 1Ho1sCDir6bu3UfsJF3MWyJuSchGjjWQ_f9aAs9viM50. NOTE: its cover
   TITLE/tagline/date live on a custom layout ("Custom Layout 4"), not the slide;
   dump() surfaces used layouts. Currently SWIM-tailored, so its SWIM logo is what
-  replace-logo swaps out. Structural object IDs (in config.py + the skill): framework
-  slide g3f73b73fc1d_0_8; bonus slides Debrief g2f9b7407bc0_0_290, Executive X
-  g2f9b7407bc0_0_431, intro g2f9b7407bc0_0_148.
+  replace-logo swaps out. Structural object IDs (in config.py + the routine prompt):
+  framework slide g3f73b73fc1d_0_8; bonus slides Debrief g2f9b7407bc0_0_290,
+  Executive X g2f9b7407bc0_0_431, intro g2f9b7407bc0_0_148.
 - CLIENT_LOGO_IMAGE_IDS (config.py) — the 7 client-logo image IDs (cover slide-1 image
   + the right-hand footer-lockup logo on slides 3/4/6/7/8/12). Stable across copies.
   The "My Adventure Group" logo (footer left) is intentionally excluded.
 
 DATA STORES
 - Supabase table proposal_demo_notes_email_logs (project aivitcomiywiysrfwqxt) — the
-  work queue (shared with v1). Columns used: id, demo_notes_link, additional_notes,
-  is_processed, status, error_message, proposal_link, processed_at. The interactive
-  skill uses no data store. Transient run artifacts (thumbnails, edits.json) live in
-  the session scratchpad.
+  work queue (shared with v1). Columns: id, demo_notes_link, additional_notes,
+  is_processed, status, error_message, proposal_link, processed_at, has_fathom_notes
+  (bool), tag (text, added this session — matched Fathom meeting title/date or
+  similar). Transient run artifacts (thumbnails, edits.json) live in the routine's
+  own working checkout.
 
 SETUP
 - pip install -r requirements.txt (google-api-python-client, google-auth,
