@@ -13,18 +13,23 @@ Usage:
     python v2_tools.py delete-slide  <presentation_link_or_id> <slide_index_or_object_id>
     python v2_tools.py replace-logo  <presentation_link_or_id> <public_image_url>
     python v2_tools.py thumbnails    <presentation_link_or_id> <1,2,3,...> <out_dir>
-    python v2_tools.py email-proposal "<client name>" "<deck_url>" "<folder_url>"
+    python v2_tools.py email-proposal "<client name>" "<deck_url>" "<folder_url>" [fathom_note] [additional_notes_note] [logo_note]
     python v2_tools.py queue-list
-    python v2_tools.py queue-done    <row_id> <status> <proposal_link|-> <error|->
+    python v2_tools.py queue-done    <row_id> <status> <proposal_link|-> <error|-> [has_fathom_notes|-] [tag|-]
 
 All IDs may be passed as raw IDs or as full Google Drive/Slides URLs.
 `email-proposal` sends to config.NOTIFY_EMAIL (default liv@myadventuregroup.com.au;
-override with the NOTIFY_EMAIL env var).
+override with the NOTIFY_EMAIL env var). Its three optional trailing args are
+human-readable one-liners appended to the email as a "Run summary" (whether Fathom
+notes were found/used, whether the salesperson's additional_notes were applied, and
+whether a client logo was found/swapped); pass "-" to omit one.
 
 `queue-list` prints the unprocessed rows of the Supabase queue
 (proposal_demo_notes_email_logs) as JSON [{id, demo_notes_link, additional_notes}].
 `queue-done` marks one row processed: status is success|needs_review|error; pass
-"-" for an empty proposal_link or error.
+"-" for an empty proposal_link or error. The two optional trailing args record
+`has_fathom_notes` (true/false) and a free-text `tag` (e.g. the matched Fathom
+meeting title/id); pass "-" to leave either column unchanged.
 """
 
 import json
@@ -123,42 +128,65 @@ def cmd_queue_list(clients):
     _emit(supabase_service.list_unprocessed(supabase_service.get_client()))
 
 
-def cmd_queue_done(clients, row_id, status, proposal_link, error_message):
-    link = None if proposal_link in ("", "-") else proposal_link
-    err = None if error_message in ("", "-") else error_message
+def _opt(value):
+    """Treats "" / "-" as an omitted optional CLI argument."""
+    return None if value in (None, "", "-") else value
+
+
+def cmd_queue_done(clients, row_id, status, proposal_link, error_message,
+                   has_fathom_notes="-", tag="-"):
+    link = _opt(proposal_link)
+    err = _opt(error_message)
+    fathom_raw = _opt(has_fathom_notes)
+    fathom = None if fathom_raw is None else fathom_raw.strip().lower() in ("true", "yes", "1", "t")
+    tag_val = _opt(tag)
     supabase_service.mark_row_processed(
-        supabase_service.get_client(), row_id, status, error_message=err, proposal_link=link
+        supabase_service.get_client(), row_id, status, error_message=err, proposal_link=link,
+        has_fathom_notes=fathom, tag=tag_val,
     )
-    _emit({"row_id": row_id, "status": status, "proposal_link": link, "error_message": err})
+    _emit({"row_id": row_id, "status": status, "proposal_link": link, "error_message": err,
+           "has_fathom_notes": fathom, "tag": tag_val})
 
 
-def cmd_email_proposal(clients, client_name, deck_url, folder_url):
+def cmd_email_proposal(clients, client_name, deck_url, folder_url,
+                       fathom_note="-", additional_notes_note="-", logo_note="-"):
     subject = f"Uncharted Ice proposal ready — {client_name}"
+    summary_lines = []
+    if _opt(fathom_note) is not None:
+        summary_lines.append(f"- Fathom meeting notes: {fathom_note}")
+    if _opt(additional_notes_note) is not None:
+        summary_lines.append(f"- Salesperson additional notes: {additional_notes_note}")
+    if _opt(logo_note) is not None:
+        summary_lines.append(f"- Client logo: {logo_note}")
+    summary = ("\nRun summary:\n" + "\n".join(summary_lines) + "\n") if summary_lines else ""
     body = (
         f"Hi Liv,\n\n"
         f"The Uncharted Ice proposal for {client_name} has been generated and is ready for review.\n\n"
         f"Proposal deck: {deck_url}\n"
-        f"Client folder: {folder_url}\n\n"
+        f"Client folder: {folder_url}\n"
+        f"{summary}\n"
         f"Please review before sending — in particular double-check the client logo and any figures.\n\n"
         f"— Automated by the Uncharted Ice proposal maker"
     )
     _emit(gmail_service.send_email(clients.gmail, config.NOTIFY_EMAIL, subject, body))
 
 
+# Each value is (handler, min_args, max_args). min == max for fixed-arity commands;
+# a wider max marks trailing optional arguments.
 COMMANDS = {
-    "fetch-notes": (cmd_fetch_notes, 2),
-    "make-folder": (cmd_make_folder, 1),
-    "move-file": (cmd_move_file, 2),
-    "copy-template": (cmd_copy_template, 2),
-    "save-text": (cmd_save_text, 3),
-    "dump-slides": (cmd_dump_slides, 1),
-    "apply-edits": (cmd_apply_edits, 2),
-    "delete-slide": (cmd_delete_slide, 2),
-    "replace-logo": (cmd_replace_logo, 2),
-    "thumbnails": (cmd_thumbnails, 3),
-    "email-proposal": (cmd_email_proposal, 3),
-    "queue-list": (cmd_queue_list, 0),
-    "queue-done": (cmd_queue_done, 4),
+    "fetch-notes": (cmd_fetch_notes, 2, 2),
+    "make-folder": (cmd_make_folder, 1, 1),
+    "move-file": (cmd_move_file, 2, 2),
+    "copy-template": (cmd_copy_template, 2, 2),
+    "save-text": (cmd_save_text, 3, 3),
+    "dump-slides": (cmd_dump_slides, 1, 1),
+    "apply-edits": (cmd_apply_edits, 2, 2),
+    "delete-slide": (cmd_delete_slide, 2, 2),
+    "replace-logo": (cmd_replace_logo, 2, 2),
+    "thumbnails": (cmd_thumbnails, 3, 3),
+    "email-proposal": (cmd_email_proposal, 3, 6),
+    "queue-list": (cmd_queue_list, 0, 0),
+    "queue-done": (cmd_queue_done, 4, 6),
 }
 
 
@@ -166,10 +194,11 @@ def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
         print(__doc__)
         sys.exit(1)
-    handler, argc = COMMANDS[sys.argv[1]]
+    handler, min_argc, max_argc = COMMANDS[sys.argv[1]]
     args = sys.argv[2:]
-    if len(args) != argc:
-        print(f"'{sys.argv[1]}' expects {argc} argument(s), got {len(args)}.\n")
+    if not (min_argc <= len(args) <= max_argc):
+        want = str(min_argc) if min_argc == max_argc else f"{min_argc}-{max_argc}"
+        print(f"'{sys.argv[1]}' expects {want} argument(s), got {len(args)}.\n")
         print(__doc__)
         sys.exit(1)
     clients = GoogleClients()

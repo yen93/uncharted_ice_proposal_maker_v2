@@ -42,15 +42,22 @@ def mark_row_processed(
     status: str,
     error_message: Optional[str] = None,
     proposal_link: Optional[str] = None,
+    has_fathom_notes: Optional[bool] = None,
+    tag: Optional[str] = None,
 ) -> None:
     """Marks a specific row processed (by primary key). `status` is one of
-    'success' | 'needs_review' | 'error'."""
-    client.table(config.SUPABASE_LOG_TABLE).update(
-        {
-            "is_processed": True,
-            "status": status,
-            "error_message": error_message,
-            "proposal_link": proposal_link,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-    ).eq("id", row_id).execute()
+    'success' | 'needs_review' | 'error'. `has_fathom_notes`/`tag` record whether
+    matching Fathom meeting notes were found and folded into the proposal; they are
+    only written when provided (None leaves the existing value untouched)."""
+    fields = {
+        "is_processed": True,
+        "status": status,
+        "error_message": error_message,
+        "proposal_link": proposal_link,
+        "processed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if has_fathom_notes is not None:
+        fields["has_fathom_notes"] = has_fathom_notes
+    if tag is not None:
+        fields["tag"] = tag
+    client.table(config.SUPABASE_LOG_TABLE).update(fields).eq("id", row_id).execute()
